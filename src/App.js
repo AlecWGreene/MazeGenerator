@@ -1,25 +1,56 @@
 import logo from './logo.svg';
 import './App.css';
+import AppCanvas from './components/AppCanvas';
+import { createContext, useEffect, useReducer, useRef, useState } from 'react';
+import Controls from './components/Controls';
+
+function appStateReducer(state, action){
+	switch(action.type){
+		case "UpdateGrid":
+			return {
+				...state,
+				grid: action.payload
+			}
+		default:
+			console.error("Unknown AppState action type");	
+			return state;
+	}
+}
+
+export const AppStateContext = createContext();
 
 function App() {
-  return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
-  );
+
+	const [appState, dispatch] = useReducer(appStateReducer, { gridPoints: [[]] })
+	const [frameSize, setFrameSize] = useState({ height: 0, width: 0})
+	const [canvasSize, setCanvasSize] = useState(0);
+	const appFrameRef = useRef();
+
+	const windowResizeHandler = () => {
+		setFrameSize({
+			height: appFrameRef.current.getBoundingClientRect().height,
+			width: appFrameRef.current.getBoundingClientRect().width
+		});
+	}
+
+	// Register window resize handler on load and initialize frameSize
+	useEffect(() => {
+		windowResizeHandler();
+		document.addEventListener("resize", windowResizeHandler);
+	}, []);
+
+	useEffect(() => {
+		setCanvasSize(Math.min(frameSize.height, frameSize.width) * 0.7);
+	}, [frameSize]);
+
+	return (
+	<div className="App" ref={appFrameRef}>
+		<AppStateContext.Provider value={[appState, dispatch]}>
+			<Controls canvasSize={canvasSize}/>
+			{canvasSize > 0 && <AppCanvas canvasSize={canvasSize} />}
+		</AppStateContext.Provider>
+	</div>
+	);
 }
 
 export default App;
