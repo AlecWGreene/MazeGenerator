@@ -13,5 +13,33 @@ export default class SquareGrid{
 				this.points[row][col] = new GridPoint(col * cellsize, row * cellsize);
 			}
 		}
+
+		// Generate neighbour connections
+		for(let row = 0; row < this.numRows; row++){
+			this.points.push([]);
+			for(let col = 0; col < this.numCols; col++){
+				this.points[row][col] = new GridPoint(col * cellsize, row * cellsize);
+
+				const indices = [
+					[row + 1, col + 1],
+					[row, col + 1],
+					[row + 1, col],
+					[row - 1, col - 1],
+					[row, col - 1],
+					[row - 1, col],
+					[row + 1, col - 1],
+					[row - 1, col + 1]
+				];
+		
+				for(const index of indices){
+					if( 0 <= index[0] && index[0] < this.numRows && 0 <= index[1] && index[1] < this.numCols){
+						const n = this.points[index[0]][index[1]];
+						this.points[row][col].addNeighbour(n);
+					}
+				}
+			}
+		}
+
+		
 	}
 }

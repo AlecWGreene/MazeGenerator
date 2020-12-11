@@ -1,26 +1,67 @@
 import p5 from "p5";
-import { useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
+import { AppStateContext } from "../../App";
 
 export default function AppCanvas(props){
 
+	const [appState] = useContext(AppStateContext);
 	const [renderer, setRenderer] = useState(null);
 	const canvasRef = useRef();
 
-	// Initialize p5 sketch methods
-	const sketch = (p5) => {
-		let x = 100;
-  		let y = 100;
+	const drawGrid = (p5) => {
+		p5.background(0);
+		if(appState.grid){
+			p5.stroke("white");
 
-		p5.setup = () => {
-			p5.createCanvas(props.canvasSize, props.canvasSize);
-		}
+			const gridScale = Math.min(props.canvasSize / 100, props.canvasSize / 100);
+			const origin = [10 + appState.origin.x, 10 + appState.origin.y];
 
-		p5.draw = () => {
-			p5.background(0);
-    		p5.fill(255);
-    		p5.rect(x,y,50,50);
+			for(const row of appState.grid.points){
+				for(const point of row){
+					// Draw point
+					p5.strokeWeight(5);
+					const p = p5.createVector(point.position.x * gridScale + origin[0], point.position.y * gridScale + origin[1]);
+					p5.point(p.x, p.y);
+
+					// Draw connections which are positive y-axis changes and not directly left
+					for(const neighbour of point.neighbours){
+						const diff = {
+							x: neighbour.position.x - point.position.x,
+							y: neighbour.position.y - point.position.y
+						}
+
+						if(diff.y > 0 || (diff.y === 0 && diff.x < 0)){
+							p5.strokeWeight(2.5);
+							p5.line(p.x, p.y, neighbour.position.x * gridScale + origin[0], neighbour.position.y * gridScale + origin[1]);
+						}
+					}
+				} 
+			}
 		}
 	}
+
+	// Initialize p5 sketch methods
+	const sketch = (p5) => {
+
+		// Setup canvas size
+		p5.setup = () => {
+			p5.createCanvas(props.canvasSize, props.canvasSize);
+			p5.noLoop();
+		}
+
+		// Draw to the canvas
+		p5.draw = () => {  
+			drawGrid(p5);
+		}
+	}
+
+	// When appState.grid or the renderer changes, draw the grid
+	useEffect(()=>{
+		if(renderer && appState.grid){
+			renderer.clear();
+			drawGrid(renderer)
+		}
+	}, [appState.grid, renderer]);
 
 	// Setup the canvas on load
 	useEffect(() => {

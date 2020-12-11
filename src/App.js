@@ -9,7 +9,13 @@ function appStateReducer(state, action){
 		case "UpdateGrid":
 			return {
 				...state,
-				grid: action.payload
+				grid: action.payload.grid,  
+				origin: action.payload.origin
+			}
+		case "ResizeCanvas":
+			return {
+				...state,
+				canvasSize: action.payload
 			}
 		default:
 			console.error("Unknown AppState action type");	
@@ -21,7 +27,7 @@ export const AppStateContext = createContext();
 
 function App() {
 
-	const [appState, dispatch] = useReducer(appStateReducer, { gridPoints: [[]] })
+	const [appState, dispatch] = useReducer(appStateReducer, {})
 	const [frameSize, setFrameSize] = useState({ height: 0, width: 0})
 	const [canvasSize, setCanvasSize] = useState(0);
 	const appFrameRef = useRef();
@@ -39,8 +45,14 @@ function App() {
 		document.addEventListener("resize", windowResizeHandler);
 	}, []);
 
+	// Update the canvas size to match the frame size
 	useEffect(() => {
-		setCanvasSize(Math.min(frameSize.height, frameSize.width) * 0.7);
+		const newSize = Math.min(frameSize.height, frameSize.width) * 0.7;
+		setCanvasSize(newSize);
+		dispatch({
+			type: "ResizeCanvas",
+			payload: newSize
+		})
 	}, [frameSize]);
 
 	return (
