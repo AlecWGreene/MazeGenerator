@@ -21,14 +21,10 @@ export default class SquareGrid{
 				this.points[row][col] = new GridPoint(col * cellsize, row * cellsize);
 
 				const indices = [
-					[row + 1, col + 1],
 					[row, col + 1],
 					[row + 1, col],
-					[row - 1, col - 1],
 					[row, col - 1],
-					[row - 1, col],
-					[row + 1, col - 1],
-					[row - 1, col + 1]
+					[row - 1, col]
 				];
 		
 				for(const index of indices){

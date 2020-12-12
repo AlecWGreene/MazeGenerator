@@ -1,15 +1,16 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useState, useRef, useEffect } from "react";
 import { AppStateContext } from "../../App";
 import HexGrid from "../../utils/HexGrid";
 import SquareGrid from "../../utils/SquareGrid";
+import Slider from "./Slider";
 
 export default function Controls(props){
 
 	const [appState, dispatch] = useContext(AppStateContext);
 	const [gridType, setGridType] = useState("Square");
-	const [gridSize, setGridSize] = useState(100);
-	const [cellsize, setCellsize] = useState(5);
+	const sliderValue = useRef();
 
+	// Update states based on button presses
 	const buttonHandlers = {
 		gridHandlers: {
 			square: () => {
@@ -21,20 +22,22 @@ export default function Controls(props){
 		}
 	};
 
+	// Call the constructor methods for the selected grid type
 	const gridConstructor = () => {
 		switch(gridType){
 			case "Square":
-				return new SquareGrid(gridSize,gridSize, cellsize);
+				return new SquareGrid(appState.canvasSize, appState.canvasSize, sliderValue.current);
 			case "Hex":
-				return new HexGrid(gridSize, gridSize, cellsize);
+				return new HexGrid(appState.canvasSize, appState.canvasSize, sliderValue.current);
 			default:
 				throw new Error("Grid type not recognized");  
 		}
 	}
 
+	// Dispatch generated data to the AppStateContext
 	const submitHandler = () => {
 		const grid = gridConstructor();
-		const origin = (gridType === "Square") ? {x: 0, y: 0} : { x: appState.canvasSize / 2, y: appState.canvasSize / 2};
+		const origin = (gridType === "Square") ? {x: 15, y: 15} : { x: appState.canvasSize / 2, y: appState.canvasSize / 2};
 		dispatch({
 			type: "UpdateGrid",
 			payload: {
@@ -46,6 +49,9 @@ export default function Controls(props){
 
 	return (
 		<div className="AppControls" style={{minWidth: props.canvasSize}}>
+			<div className="ButtonRow">
+				<Slider output={sliderValue} />
+			</div>
 			<div className="ButtonRow">
 				<button className="GridButton" onClickCapture={buttonHandlers.gridHandlers.square}>
 					Square Grid

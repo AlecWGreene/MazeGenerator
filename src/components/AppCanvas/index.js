@@ -13,14 +13,11 @@ export default function AppCanvas(props){
 		if(appState.grid){
 			p5.stroke("white");
 
-			const gridScale = Math.min(props.canvasSize / 100, props.canvasSize / 100);
-			const origin = [10 + appState.origin.x, 10 + appState.origin.y];
-
 			for(const row of appState.grid.points){
 				for(const point of row){
 					// Draw point
 					p5.strokeWeight(5);
-					const p = p5.createVector(point.position.x * gridScale + origin[0], point.position.y * gridScale + origin[1]);
+					const p = p5.createVector(point.position.x + appState.origin.x, point.position.y + appState.origin.y);
 					p5.point(p.x, p.y);
 
 					// Draw connections which are positive y-axis changes and not directly left
@@ -30,10 +27,8 @@ export default function AppCanvas(props){
 							y: neighbour.position.y - point.position.y
 						}
 
-						if(diff.y > 0 || (diff.y === 0 && diff.x < 0)){
 							p5.strokeWeight(2.5);
-							p5.line(p.x, p.y, neighbour.position.x * gridScale + origin[0], neighbour.position.y * gridScale + origin[1]);
-						}
+							p5.line(p.x, p.y, neighbour.position.x + appState.origin.x, neighbour.position.y + appState.origin.y);
 					}
 				} 
 			}
