@@ -1,22 +1,58 @@
 import p5 from "p5";
-import { useContext, useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useReducer, useRef, useState } from "react";
 import { AppStateContext } from "../../App";
+
+function renderConfigReducer(state, action){
+	return {
+		...state,
+		action
+	}
+}
 
 export default function AppCanvas(props){
 
 	const [appState] = useContext(AppStateContext);
 	const [renderer, setRenderer] = useState(null);
+
+	const [renderConfig, dispatchConfig] = useReducer(renderConfigReducer, {
+		grid: {
+			point: {
+				stroke: 3,
+				color: "white"
+			},
+			line: {
+				stroke: 2,
+				color: "white"
+			}
+		},
+		maze: {
+			startPoint: {
+				stroke: 7,
+				color: "green"
+			},
+			nodePoint: {
+				stroke: 6.5,
+				color: "blue"
+			},
+			line: {
+				stroke: 3,
+				color: "cyan"
+			}
+		}
+	}); 
+
 	const canvasRef = useRef();
 
+	// Draws the grid using points and the line
 	const drawGrid = (p5) => {
 		p5.background(0);
 		if(appState.grid){
-			p5.stroke("white");
-
+			
 			for(const row of appState.grid.points){
 				for(const point of row){
 					// Draw point
-					p5.strokeWeight(5);
+					p5.strokeWeight(renderConfig.grid.point.stroke);
+					p5.stroke(renderConfig.grid.point.color);
 					const p = p5.createVector(point.position.x + appState.origin.x, point.position.y + appState.origin.y);
 					p5.point(p.x, p.y);
 
@@ -27,10 +63,78 @@ export default function AppCanvas(props){
 							y: neighbour.position.y - point.position.y
 						}
 
-							p5.strokeWeight(2.5);
-							p5.line(p.x, p.y, neighbour.position.x + appState.origin.x, neighbour.position.y + appState.origin.y);
+						// Draw line
+						p5.stroke(renderConfig.grid.line.color);
+						p5.strokeWeight(renderConfig.grid.line.stroke);
+						p5.line(p.x, p.y, neighbour.position.x + appState.origin.x, neighbour.position.y + appState.origin.y);
 					}
 				} 
+			}
+		}
+	}
+
+	// Draws the maze and shows the path connections
+	const drawMaze = (p5) => {
+		if(appState.maze){
+			// Draw the graph lines
+			for(const node of appState.maze.graph){
+				
+				// Draw node connections
+				for(const connection of node.connections){
+					p5.stroke(renderConfig.maze.line.color);
+					p5.strokeWeight(renderConfig.maze.line.stroke)
+					p5.line(node.point.position.x + appState.origin.x, 
+						node.point.position.y + appState.origin.y, 
+						connection.position.x + appState.origin.x,
+						connection.position.y + appState.origin.y);
+				}
+			}
+
+			// Draw the maze points
+			for(const node of appState.maze.graph){
+				// Draw node point 
+				p5.stroke(renderConfig.maze.nodePoint.color);
+				p5.strokeWeight(renderConfig.maze.nodePoint.stroke)
+				p5.point(node.point.position.x + appState.origin.x, node.point.position.y + appState.origin.y);
+			}
+
+			// Draw starting point
+			p5.stroke(renderConfig.maze.startPoint.color);
+			p5.strokeWeight(renderConfig.maze.startPoint.stroke)
+			p5.point(appState.maze.start.position.x + appState.origin.x, appState.maze.start.position.y + appState.origin.y);
+		}
+	}
+
+	// DEBUGGING draws the maze outline
+	const drawOutline = (p5) => {
+		let color = {
+			layer: 32,
+			slice: 32,
+			fragment: 70
+		}
+		let counter = {
+			layer: 1,
+			slice: 1,
+			fragment: 1 
+		}
+
+		// Layers
+		for(const layer of appState.maze.outline){
+			counter.layer++;
+			counter.slice = 1;
+			for(const slice of layer){
+				counter.slice++;
+				counter.fragment = 1;
+				for(const fragment of slice){
+					counter.fragment++;
+					for(const row of fragment.subgraph){
+						for(const point of row){
+							p5.stroke((color.layer * counter.layer) * 1.5 / counter.fragment, ((2.2 * counter.slice * color.slice - color.layer * counter.layer)) * 1.5 / counter.fragment, (color.layer * counter.slice) * 1.5 / counter.fragment);
+							p5.strokeWeight(renderConfig.maze.nodePoint.stroke);
+							p5.point(point.position.x + appState.origin.x, point.position.y + appState.origin.y);
+						}
+					}
+				}
 			}
 		}
 	}
@@ -47,6 +151,7 @@ export default function AppCanvas(props){
 		// Draw to the canvas
 		p5.draw = () => {  
 			drawGrid(p5);
+			drawMaze(p5);
 		}
 	}
 
@@ -54,9 +159,11 @@ export default function AppCanvas(props){
 	useEffect(()=>{
 		if(renderer && appState.grid){
 			renderer.clear();
-			drawGrid(renderer)
+			drawGrid(renderer);
+			//drawMaze(renderer);
+			drawOutline(renderer);
 		}
-	}, [appState.grid, renderer]);
+	}, [appState.maze, appState.origin, appState.grid, renderer]);
 
 	// Setup the canvas on load
 	useEffect(() => {

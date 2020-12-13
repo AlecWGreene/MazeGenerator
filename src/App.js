@@ -6,6 +6,11 @@ import Controls from './components/Controls';
 
 function appStateReducer(state, action){
 	switch(action.type){
+		case "UpdateMaze":
+			return {
+				...state,
+				maze: action.payload
+			}
 		case "UpdateGrid":
 			return {
 				...state,
@@ -18,7 +23,7 @@ function appStateReducer(state, action){
 				canvasSize: action.payload
 			}
 		default:
-			console.error("Unknown AppState action type");	
+			console.error(`Unknown AppState action type ${action.type}`);	
 			return state;
 	}
 }
@@ -47,7 +52,7 @@ function App() {
 
 	// Update the canvas size to match the frame size
 	useEffect(() => {
-		const newSize = Math.min(frameSize.height, frameSize.width) * 0.7;
+		const newSize = Math.min(frameSize.height, frameSize.width) * 0.9;
 		setCanvasSize(newSize);
 		dispatch({
 			type: "ResizeCanvas",
