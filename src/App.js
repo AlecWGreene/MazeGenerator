@@ -6,6 +6,11 @@ import Controls from './components/Controls';
 
 function appStateReducer(state, action){
 	switch(action.type){
+		case "UpdateComputationTime":
+			return {
+				...state,
+				computationTime: action.payload
+			}
 		case "UpdateMaze":
 			return {
 				...state,

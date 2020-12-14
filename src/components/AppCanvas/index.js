@@ -18,11 +18,11 @@ export default function AppCanvas(props){
 		grid: {
 			point: {
 				stroke: 3,
-				color: "white"
+				color: "silver"
 			},
 			line: {
-				stroke: 2,
-				color: "white"
+				stroke: 1,
+				color: "silver"
 			}
 		},
 		maze: {
@@ -31,7 +31,7 @@ export default function AppCanvas(props){
 				color: "green"
 			},
 			nodePoint: {
-				stroke: 6.5,
+				stroke: 7,
 				color: "blue"
 			},
 			line: {
@@ -108,8 +108,8 @@ export default function AppCanvas(props){
 	// DEBUGGING draws the maze outline
 	const drawOutline = (p5) => {
 		let color = {
-			layer: 32,
-			slice: 32,
+			layer: 40,
+			slice: 40,
 			fragment: 70
 		}
 		let counter = {
@@ -129,9 +129,12 @@ export default function AppCanvas(props){
 					counter.fragment++;
 					for(const row of fragment.subgraph){
 						for(const point of row){
-							p5.stroke((color.layer * counter.layer) * 1.5 / counter.fragment, ((2.2 * counter.slice * color.slice - color.layer * counter.layer)) * 1.5 / counter.fragment, (color.layer * counter.slice) * 1.5 / counter.fragment);
+							// if(point.weight){
+							// p5.stroke(255 * point.weight,255 * point.weight,255 * point.weight);
+							p5.stroke((color.layer * counter.layer) * 2 / counter.fragment, ((2.2 * counter.slice * color.slice - color.layer * counter.layer)) * 2 / counter.fragment, (color.layer * counter.slice) * 2 / counter.fragment);
 							p5.strokeWeight(renderConfig.maze.nodePoint.stroke);
 							p5.point(point.position.x + appState.origin.x, point.position.y + appState.origin.y);
+							
 						}
 					}
 				}
@@ -160,8 +163,8 @@ export default function AppCanvas(props){
 		if(renderer && appState.grid){
 			renderer.clear();
 			drawGrid(renderer);
-			//drawMaze(renderer);
 			drawOutline(renderer);
+			drawMaze(renderer);
 		}
 	}, [appState.maze, appState.origin, appState.grid, renderer]);
 

@@ -29,3 +29,35 @@
 	align-items: center;
 	justify-content: center;
 }
+
+/* Slider styles */
+.sliderContainer{
+	width: 100%;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
+
+.sliderHeader{
+	width: max-content;
+}
+
+.sliderInput{
+	width: 100%;
+}
+
+/* Time styles */
+.TimeContainer{
+	width: 100%;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
+
+.TimeLabel{
+
+}
+
+.TimeValue{
+
+}

@@ -44,29 +44,29 @@ const mazeSettings = {
 	outline: new MazeConfig(null, [
 		new MazeLayer(1, [
 			[
-				new LayerFragment("ring", 1, [])
+				new LayerFragment("ring", 1, ["North", "East", "South", "West"])
 			],
 			[
-				new LayerFragment("ring", 1, [])
+				new LayerFragment("ring", 1, ["North", "East", "South", "West"])
 			]
 		], [1,2],"ring"),
 		new MazeLayer(1.7, [
 			[
-				new LayerFragment("ring", 1, [])
+				new LayerFragment("ring", 1, ["North", "South", "East"])
 			],
 			[
-				new LayerFragment("ring", 1.2, []),
-				new LayerFragment("ring", 1, []),
-				new LayerFragment("ring", 1, [])
+				new LayerFragment("ring", 1.2, ["North", "East", "South", "West"]),
+				new LayerFragment("ring", 1, ["North", "South"]),
+				new LayerFragment("ring", 1, ["North", "East", "South", "West"])
 			],
 			[
-				new LayerFragment("ring", 2, []),
-				new LayerFragment("ring", 1, []),
+				new LayerFragment("ring", 2, ["North", "East", "South", "West"]),
+				new LayerFragment("ring", 1, ["East", "West"]),
 			]
 		], [1,3,1],"ring"),
 		new MazeLayer(0.5, [
 			[
-				new LayerFragment("ring", 1, [])
+				new LayerFragment("ring", 1, ["North", "East", "South", "West"])
 			]
 		], [1],"ring")
 	], 0)
@@ -111,7 +111,9 @@ export default function Controls(props){
 	}
 
 	// Dispatch generated data to the AppStateContext
-	const submitHandler = () => {	
+	const submitHandler = () => {
+		const start = new Number(new Date().getTime());	
+		let end;
 		// If user has made changes to grid, then update grid	
 		if(configsHaveChanged(gridConfig, {type: gridType, cellsize: sliderValue.current})){
 			const grid = gridConstructor();
@@ -128,20 +130,32 @@ export default function Controls(props){
 			// If user has made changes to maze, then update maze 
 			if(configsHaveChanged(mazeConfig, {start: mazeStart, cellsize: sliderValue.current})){
 				const maze = generateMaze(grid, mazeStart, [], mazeSettings.outline);
+				end = new Number(new Date().getTime());
 
 				dispatch({
 					type: "UpdateMaze",
 					payload: maze
+				})
+
+				dispatch({
+					type: "UpdateComputationTime",
+					payload: end - start
 				})
 			}
 		}
 		// If user has made changes to maze, then update maze 
 		else if(configsHaveChanged(mazeConfig, {start: mazeStart, cellsize: sliderValue.current})){
 			const maze = generateMaze(appState.grid, mazeStart, [], mazeSettings.outline);
+			end = new Number(new Date().getTime());
 
 			dispatch({
 				type: "UpdateMaze",
 				payload: maze
+			})
+
+			dispatch({
+				type: "UpdateComputationTime",
+				payload: end - start
 			})
 		}
 	}
@@ -159,6 +173,10 @@ export default function Controls(props){
 				<button className="HexButton" onClickCapture={buttonHandlers.gridHandlers.hex}>
 					Hex Grid
 				</button>
+			</div>
+			<div className="TimeContainer">
+				<div className="TimeLabel">Previous Computation Time:</div>
+				<div className="TimeValue">{appState.computationTime || "N/A"} ms</div> 
 			</div>
 			<button className="GenerateButton" onClickCapture={submitHandler}> Generate Maze</button>
 		</div>
