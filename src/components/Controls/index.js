@@ -52,16 +52,17 @@ const mazeSettings = {
 		], [1,2],"ring"),
 		new MazeLayer(1.7, [
 			[
-				new LayerFragment("ring", 1, ["North", "South", "East"])
-			],
-			[
-				new LayerFragment("ring", 1.2, ["North", "East", "South", "West"]),
-				new LayerFragment("ring", 1, ["North", "South"]),
 				new LayerFragment("ring", 1, ["North", "East", "South", "West"])
 			],
 			[
+				new LayerFragment("ring", 1.2, ["North", "East", "South", "West"]),
+				new LayerFragment("ring", 1, ["North", "East", "South", "West"]),
+				new LayerFragment("ring", 1, ["North", "East", "South", "West"]),
+				new LayerFragment("ring", 1, ["North", "East", "South", "West"])	
+			],
+			[
 				new LayerFragment("ring", 2, ["North", "East", "South", "West"]),
-				new LayerFragment("ring", 1, ["East", "West"]),
+				new LayerFragment("ring", 1, ["North", "East", "South", "West"]),
 			]
 		], [1,3,1],"ring"),
 		new MazeLayer(0.5, [

@@ -1,8 +1,5 @@
 import GridPoint from "./GridPoint";
 
-const sqrt3 = Math.sqrt(3); 
-const sqrt1_3 = 1 / Math.sqrt(3);
-
 export default class HexGrid{
 	constructor(height, width, sideLength){
 		this.height = height;
@@ -24,6 +21,7 @@ export default class HexGrid{
 					// Connect it using index matching for hexagons which don't leave the bounds
 					if(open.length === this.points.length * 6){
 						point.addNeighbour(this.points[this.points.length-1][Math.floor(index * (1 - 1 / this.points.length))]);
+						this.points[this.points.length-1][Math.floor(index * (1 - 1 / this.points.length))].addNeighbour(point);
 					}
 				}
 				// Else connect it to the two side points closest to it
@@ -37,6 +35,8 @@ export default class HexGrid{
 
 					point.addNeighbour(this.points[this.points.length-1][prevIndex]);
 					point.addNeighbour(this.points[this.points.length-1][nextIndex]);
+					this.points[this.points.length-1][prevIndex].addNeighbour(point);
+					this.points[this.points.length-1][nextIndex].addNeighbour(point);
 				}
 
 				// connect point to its neighbours
@@ -44,11 +44,22 @@ export default class HexGrid{
 				const nextIndex = (index + 1) % open.length;
 				point.addNeighbour(open[prevIndex]);
 				point.addNeighbour(open[nextIndex]);
+				open[prevIndex].addNeighbour(point);
+				open[nextIndex].addNeighbour(point);
 			}
 
 			// Add the points to the grid and get the next hexagon
 			this.points.push(open)
 			open = this.getNextHexagon();
+		}
+
+		// Remove redundant neighbors
+		for(const row of this.points){
+			for(const point of row){
+				point.neighbours = point.neighbours.filter((p, index, nArray) => {
+					return (point.position.x !== p.position.x || point.position.y !== p.position.y) && !nArray.filter((_,i) => i < index).includes(p)
+				});
+			}
 		}
 	}
 		
