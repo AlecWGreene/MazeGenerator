@@ -108,7 +108,7 @@ export default function AppCanvas(props){
 	// DEBUGGING draws the maze outline
 	const drawOutline = (p5) => {
 		let color = {
-			layer: 40,
+			layer: 80,
 			slice: 40,
 			fragment: 70
 		}
@@ -131,7 +131,12 @@ export default function AppCanvas(props){
 						for(const point of row){
 							// if(point.weight){
 							// p5.stroke(255 * point.weight,255 * point.weight,255 * point.weight);
-							p5.stroke((color.layer * counter.layer) * 2 / counter.fragment, ((2.2 * counter.slice * color.slice - color.layer * counter.layer)) * 2 / counter.fragment, (color.layer * counter.slice) * 2 / counter.fragment);
+							//p5.stroke((color.layer * counter.layer) * 2 / counter.fragment, ((2.2 * counter.slice * color.slice - color.layer * counter.layer)) * 2 / counter.fragment, (color.layer * counter.slice) * 2 / counter.fragment);
+							p5.stroke(
+								(color.layer * counter.layer) * 1.5 / counter.fragment,
+								(color.slice * counter.slice) * 3 / counter.fragment,
+								((color.layer * counter.layer) + (color.slice * counter.slice)) / (2 * counter.fragment)
+							);
 							p5.strokeWeight(renderConfig.maze.nodePoint.stroke);
 							p5.point(point.position.x + appState.origin.x, point.position.y + appState.origin.y);
 							

@@ -43,10 +43,18 @@ export class MazeLayer {
 }
 
 /**
+ * @typedef {Object} GraphNode
+ * 
+ * @property {GridPoint} point The physical location of the node
+ * @property {Array<GraphNode>} connections The nodes which are visitable from this node
+ */
+
+/**
  * @typedef {Object} MazeFragment
  * 
  * @property {"ring"|"braid"|"branch"} type The requested maze generation algorithm to run on the graph
  * @property {Array<Array<GridPoint>>} subgraph The jagged array of grid points which make up the maze fragment
+ * @property {Array<GraphNode>} gateGraph The graph of nodes which make up the fragment gates
  * @property {Array<"North"|"East"|"South"|"West">} connections The array of strings representing which directions this fragment connects to other fragments in, using the compass directions
  * @property {Object<string,Array<GridPoint>>} gates The set of connections into or out of the fragment
  */
@@ -300,17 +308,17 @@ function generateFragmentGates(fragment, directions){
 
 					// For each partition, select a random point as a gate
 					for(let i = 0; i < numGates; i++){
-						let selection = -1;
+						let nselection = -1;
 						if(i === numGates - 1){
 							// Pick from the remaining points
 							const remainingCount = nring.length - i * nPartitionLength;
-							selection = Math.floor(Math.random() * remainingCount);
+							nselection = Math.floor(Math.random() * remainingCount);
 						}
 						else{
-							selection = Math.floor(Math.random() * nPartitionLength);
+							nselection = Math.floor(Math.random() * nPartitionLength);
 						}
 
-						gates.North.push(nring[i * nPartitionLength + selection]);
+						gates.North.push(nring[i * nPartitionLength + nselection]);
 					}
 				}
 				break;
@@ -328,26 +336,72 @@ function generateFragmentGates(fragment, directions){
 
 					// For each partition, select a random point as a gate
 					for(let i = 0; i < numGates; i++){
-						let selection = -1;
+						let sselection = -1;
 						if(i === numGates - 1){
 							// Pick from the remaining points
 							const remainingCount = sring.length - i * sPartitionLength;
-							selection = Math.floor(Math.random() * remainingCount);
+							sselection = Math.floor(Math.random() * remainingCount);
 						}
 						else{
-							selection = Math.floor(Math.random() * sPartitionLength);
+							sselection = Math.floor(Math.random() * sPartitionLength);
 						}
 
-						gates.South.push(sring[i * sPartitionLength + selection]);
+						gates.South.push(sring[i * sPartitionLength + sselection]);
 					}
 				}
 				break;
 			case "East":
-				const eslice = fragment.subgraph.map(row => row.filter((point, index, rowArray) => index === rowArray.length - 1));
-				numGates = Math.ceil(eslice.length * gatePercentage);
+				if(fragment.connections.includes("East")){
+					// Partition the slice into equal length pieces
+					const eslice = fragment.subgraph.map(row => row.filter((point, index, rowArray) => index === rowArray.length - 1));
+					numGates = Math.ceil(eslice.length * gatePercentage);
+					const ePartitionLength = Math.round(eslice.length / numGates);
+					const epointArray = [];
+
+					// For each partition, select a random point as a gate
+					for(let i = 0; i < numGates; i++){
+						let eselection = -1;
+						if(i === numGates - 1){
+							// Pick from the remaining points
+							const remainingCount = eslice.length - i * ePartitionLength;
+							eselection = Math.floor(Math.random() * remainingCount);
+						}
+						else{
+							eselection = Math.floor(Math.random() * ePartitionLength);
+						}
+
+						epointArray.push(eslice[i * ePartitionLength + eselection]);
+					}
+
+					// Combine the arrays of single points
+					gates.East.push(...epointArray.reduce((aggr, array) => aggr.concat(array)));
+				}
 			case "West":
-				const wslice = fragment.subgraph.map(row => row.filter((point, index) => index === 0));
-				numGates = Math.ceil(wslice.length * gatePercentage);
+				if(fragment.connections.includes("West")){
+					// Partition the slice into equal length pieces
+					const wslice = fragment.subgraph.map(row => row.filter((point, index) => index === 0));
+					numGates = Math.ceil(wslice.length * gatePercentage);
+					const wPartitionLength = Math.round(wslice.length / numGates);
+					const wpointArray = [];
+
+					// For each partition, select a random point as a gate
+					for(let i = 0; i < numGates; i++){
+						let wselection = -1;
+						if(i === numGates - 1){
+							// Pick from the remaining points
+							const remainingCount = wslice.length - i * wPartitionLength;
+							wselection = Math.floor(Math.random() * remainingCount);
+						}
+						else{
+							wselection = Math.floor(Math.random() * wPartitionLength);
+						}
+
+						wpointArray.push(wslice[i * wPartitionLength + wselection]);
+					}
+
+					// Combine the arrays of single points
+					gates.West.push(...wpointArray.reduce((aggr, array) => aggr.concat(array)));
+				}
 				break;
 			default:
 				throw new Error(`Fragment connection type ${direction} is invalid`);
@@ -385,6 +439,7 @@ function connectGateNodes(fragment, layerNeighbours, sliceNeighbours, fragmentNe
 				break;
 			case "East":
 				candidates = (sliceNeighbours[1] || []);
+				break;
 			case "West":
 				candidates = (sliceNeighbours[0] || []);
 				break;
@@ -423,7 +478,7 @@ function connectGateNodes(fragment, layerNeighbours, sliceNeighbours, fragmentNe
 export default function generateMaze(grid, start, endCandidates, config){
 	// Compute the grid outline using the config object
 	const outline = config.generateOutline(grid);
-	const graph = [];
+	const gateGraph = [];
 
 	// Select gate nodes for connecting the fragments
 	for(const layer of outline){
@@ -434,7 +489,7 @@ export default function generateMaze(grid, start, endCandidates, config){
 		}
 	}
 
-	// Iterate over each fragment
+	// Iterate over each fragment to generate fragment connections
 	for(let layerIndex = 0; layerIndex < outline.length; layerIndex++){
 		const layer = outline[layerIndex];
 		for(let sliceIndex = 0; sliceIndex < layer.length; sliceIndex++){
@@ -460,21 +515,58 @@ export default function generateMaze(grid, start, endCandidates, config){
 													}
 												})
 													
-				const sliceNeighbours = !(fragment.connections.includes("East") || fragment.connections.includes("West")) ? undefined : layer.filter((_, subIndex) => Math.abs(subIndex - sliceIndex) === 1)
-				 							 // Collect the rightmost col of every fragment of the left slice and the leftmost col of every fragment of the right slice
-				   							 .map((fragArray, subIndex) => {
-												// subIndex has to be 0 or 1, use that to switch between left and right slices
-												return fragArray.map(frag => {
-													if(frag.connections.includes(subIndex === 0 ? "East" : "West")){
-														return subIndex === 0 ? frag.gates.East : frag.gates.West;
-													}
-													else{
-														return [];
-													}
-											 })
-											 // Combine the array of gates in each slice
-											 .reduce((aggr, array) => aggr.concat(array));
-											});
+				const sliceNeighbours = !(fragment.connections.includes("East") || fragment.connections.includes("West")) ? undefined : 
+												layer
+													// Collect slices which are neighbours
+													.filter((_, subIndex) => Math.abs(subIndex - sliceIndex) === 1 || (sliceIndex === 0 && subIndex === layer.length - 1 && layer.length > 1) || (subIndex === 0 && sliceIndex === layer.length - 1 && layer.length > 1) || layer.length === 2 )
+													// Iterate over each fragment and collect vertical slices
+													.map((tSlice, subIndex, newArray) => {
+														// Handle the case of a 2 slice layer
+														if(layer.length === 2){
+															// Connect over the backwards seam
+															if(subIndex === 1 && sliceIndex === 0){
+																return tSlice.map(tFragment => tFragment.gates.East).reduce((aggr, array) => aggr.concat(array));
+															}
+															else if(sliceIndex === 1 && subIndex === 0){
+																return tSlice.map(tFragment => tFragment.gates.West).reduce((aggr, array) => aggr.concat(array));
+															}
+															// Connect the first slice to the next slice on the normal seam
+															else if(sliceIndex === 0 && subIndex === 0){
+																return newArray[1].map(tFragment => tFragment.gates.West).reduce((aggr, array) => aggr.concat(array));
+															}
+															else if(sliceIndex === 1 && subIndex === 1){
+																return newArray[0].map(tFragment => tFragment.gates.East).reduce((aggr, array) => aggr.concat(array));
+															}
+														}
+														else{
+															// Connect first slice to last slice
+															if(subIndex === newArray.length - 1 && sliceIndex === 0){
+																return tSlice.map(tFragment => tFragment.gates.East).reduce((aggr, array) => aggr.concat(array));
+															}
+															// Connect last slice to first slice
+															else if(sliceIndex === layer.length - 1 && subIndex === 0){
+																return tSlice.map(tFragment => tFragment.gates.West).reduce((aggr, array) => aggr.concat(array));
+															}
+															// Connect first slice to second slice
+															else if(sliceIndex === 0){
+																return tSlice.map(tFragment => tFragment.gates["West"]).reduce((aggr, array) => aggr.concat(array));
+															}
+															// Connect last slice to second to last slice
+															else if(sliceIndex === layer.length - 1){
+																return tSlice.map(tFragment => tFragment.gates["East"]).reduce((aggr, array) => aggr.concat(array));
+															}
+															else{
+																return tSlice.map(tFragment => tFragment.gates[subIndex === 0 ? "East" : "West"]).reduce((aggr, array) => aggr.concat(array));
+															}
+														}
+													});
+				// Adjust for the fact that gluing the first and last slices will have the filter function reach the Eastern slice first
+				if(layer.length === 2){
+					console.log()
+				}
+				if((sliceIndex === 0 || sliceIndex === layer.length - 1)) sliceNeighbours.reverse()
+				
+			
 				const fragmentNeighbours = !(fragment.connections.includes("North") || fragment.connections.includes("South")) ? undefined : 
 												slice
 													// Collect neighbor layers
@@ -487,6 +579,7 @@ export default function generateMaze(grid, start, endCandidates, config){
 														}
 														return tFragment.gates[ subIndex === 0 ? "North" : "South"];
 													})
+
 				// Add the empty arrays to align the layer indices
 				if(layerIndex === outline.length - 1){
 					layerNeighbours.push([])
@@ -503,11 +596,10 @@ export default function generateMaze(grid, start, endCandidates, config){
 				}
 
 				// Filter and connect gate nodes
-				const gateArray = connectGateNodes(fragment, layerNeighbours, sliceNeighbours, fragmentNeighbours);
-				graph.push(...Object.values(gateArray).reduce((aggr, array) => aggr.concat(array)));
-				if(layerIndex === 1 && fragmentIndex === 0){
-
-				}
+				const gateArray = connectGateNodes(fragment, layerNeighbours, sliceNeighbours, fragmentNeighbours, layer.length === 2);
+				fragment.gateGraph = gateArray
+				gateGraph.push(...Object.values(fragment.gateGraph).reduce((aggr, array) => aggr.concat(array)));
+				
 
 				// Run the requested maze generation algorithm
 				switch(fragment.type){
@@ -522,10 +614,40 @@ export default function generateMaze(grid, start, endCandidates, config){
 		}
 	}
 
+	// Consolidate fragment connections
+	// const 
+	// for(){
+
+	// }
+
 	return {
 		start: grid.points[0][0],
 		outline: outline,
-		graph: graph,
+		graph: gateGraph,
 		finishPoints: []
+	}
+}
+
+/**
+ * @function selectFragmentSideGates
+ * 
+ * @param {MazeFragment} fragment
+ * @param {"North"|"East"|"South"|"West"} direction
+ */
+function selectFragmentSideGates(fragment, direction){
+	// +-1 representing which direction to test for
+	const nodes = [];
+	let orientation = 0;
+	switch(direction){
+		case "North":
+			orientation = -2;
+		case "South":
+			orientation++;
+			break
+		case "East":
+			orientation = -2;
+		case "West":
+			orientation++;
+			break
 	}
 }

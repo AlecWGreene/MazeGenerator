@@ -48,22 +48,37 @@ const mazeSettings = {
 			],
 			[
 				new LayerFragment("ring", 1, ["North", "East", "South", "West"])
+			],
+			[
+				new LayerFragment("ring", 1, ["North", "East", "South", "West"])
 			]
-		], [1,2],"ring"),
+		], [1,1.5,2],"ring"),
 		new MazeLayer(1.7, [
 			[
 				new LayerFragment("ring", 1, ["North", "East", "South", "West"])
 			],
 			[
+				new LayerFragment("ring", 1.7, ["North", "East", "South", "West"]),
 				new LayerFragment("ring", 1.2, ["North", "East", "South", "West"]),
+				new LayerFragment("ring", 1, ["North", "East", "South", "West"])
+			],
+			[
 				new LayerFragment("ring", 1, ["North", "East", "South", "West"]),
 				new LayerFragment("ring", 1, ["North", "East", "South", "West"])
 			],
 			[
 				new LayerFragment("ring", 2, ["North", "East", "South", "West"]),
-				new LayerFragment("ring", 1, ["North", "East", "South", "West"]),
+				new LayerFragment("ring", 1, ["North", "East", "South", "West"])
 			]
-		], [1,3,1],"ring"),
+		], [1,3, 0.7,1],"ring"),
+		new MazeLayer(0.5, [
+			[
+				new LayerFragment("ring", 1, ["North", "East", "South", "West"])
+			],
+			[
+				new LayerFragment("ring", 1, ["North", "East", "South", "West"])
+			]
+		], [1.6,1],"ring"),
 		new MazeLayer(0.5, [
 			[
 				new LayerFragment("ring", 1, ["North", "East", "South", "West"])
@@ -117,7 +132,7 @@ export default function Controls(props){
 		// If user has made changes to grid, then update grid	
 		if(configsHaveChanged(gridConfig, {type: gridType, cellsize: sliderValue.current})){
 			const grid = gridConstructor();
-			const origin = (gridType === "Square") ? {x: 15, y: 15} : { x: appState.canvasSize / 2, y: appState.canvasSize / 2};
+			const origin = (gridType === "Square") ? {x: 15, y: 15} : { x: appState.canvasSize / 2, y: appState.canvasSize / 2 };
 
 			dispatch({
 				type: "UpdateGrid",
