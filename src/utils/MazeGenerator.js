@@ -475,16 +475,18 @@ export default function generateMaze(grid, start, endCandidates, config){
 											 // Combine the array of gates in each slice
 											 .reduce((aggr, array) => aggr.concat(array));
 											});
-				const fragmentNeighbours = !(fragment.connections.includes("North") || fragment.connections.includes("South")) ? undefined : slice.filter((_, subIndex) => Math.abs(subIndex - fragmentIndex) === 1)
-												// Grab the South and South gates for each frag neighbouring the frag
-												.map((frag, subIndex) => {
-													if(frag.connections.includes(subIndex === 0 ? "North" : "South")){
-														return subIndex === 0 ? frag.gates.North : frag.gates.South;
-													}
-													else{
-														return []
-													}
-												});
+				const fragmentNeighbours = !(fragment.connections.includes("North") || fragment.connections.includes("South")) ? undefined : 
+												slice
+													// Collect neighbor layers
+													.filter((_, subIndex) => Math.abs(subIndex - fragmentIndex) === 1)
+													// Iterate over each slice and get the top or bottom fragments
+													.map((tFragment, subIndex, array) => {
+														if(array.length === 1){
+															const isFragLast = Math.floor(fragmentIndex / (slice.length - 1));
+															return tFragment.gates[ subIndex === isFragLast ? "South" : "North"]
+														}
+														return tFragment.gates[ subIndex === 0 ? "North" : "South"];
+													})
 				
 				if(layerIndex === 0){
 					layerNeighbours.unshift([])
@@ -494,12 +496,7 @@ export default function generateMaze(grid, start, endCandidates, config){
 				}
 
 				const gateArray = connectGateNodes(fragment, layerNeighbours, sliceNeighbours, fragmentNeighbours);
-				if(layerIndex === 1){
-					 graph.push(...layerNeighbours[0]?.map(t => {return {point: t, connections: []}}))
-					 graph.push(...layerNeighbours[1]?.map(t => {return {point: t, connections: []}}))
-					 console.log(layerNeighbours)
-				}
-				//graph.push(...Object.values(gateArray).reduce((aggr, array) => aggr.concat(array)));
+				graph.push(...Object.values(gateArray).reduce((aggr, array) => aggr.concat(array)));
 
 				// Run the requested maze generation algorithm
 				switch(fragment.type){
