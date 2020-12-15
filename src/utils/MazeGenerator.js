@@ -487,16 +487,27 @@ export default function generateMaze(grid, start, endCandidates, config){
 														}
 														return tFragment.gates[ subIndex === 0 ? "North" : "South"];
 													})
-				
-				if(layerIndex === 0){
-					layerNeighbours.unshift([])
-				}
-				else if(layerIndex === outline.length - 1){
+				// Add the empty arrays to align the layer indices
+				if(layerIndex === outline.length - 1){
 					layerNeighbours.push([])
 				}
 
+				// Add the empty arrays to align the fragment indices
+				if(fragmentNeighbours.length === 1){
+					if(fragmentIndex === 0){
+						fragmentNeighbours.unshift([])
+					}
+					else if(fragmentIndex === slice.length - 1){
+						fragmentNeighbours.push([]);
+					}
+				}
+
+				// Filter and connect gate nodes
 				const gateArray = connectGateNodes(fragment, layerNeighbours, sliceNeighbours, fragmentNeighbours);
 				graph.push(...Object.values(gateArray).reduce((aggr, array) => aggr.concat(array)));
+				if(layerIndex === 1 && fragmentIndex === 0){
+
+				}
 
 				// Run the requested maze generation algorithm
 				switch(fragment.type){

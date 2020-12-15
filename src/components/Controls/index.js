@@ -57,8 +57,7 @@ const mazeSettings = {
 			[
 				new LayerFragment("ring", 1.2, ["North", "East", "South", "West"]),
 				new LayerFragment("ring", 1, ["North", "East", "South", "West"]),
-				new LayerFragment("ring", 1, ["North", "East", "South", "West"]),
-				new LayerFragment("ring", 1, ["North", "East", "South", "West"])	
+				new LayerFragment("ring", 1, ["North", "East", "South", "West"])
 			],
 			[
 				new LayerFragment("ring", 2, ["North", "East", "South", "West"]),
