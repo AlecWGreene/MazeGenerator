@@ -702,7 +702,7 @@ export default function generateMaze(grid, start, endCandidates, config){
 					fragment.gateGraph.West[fragment.gateGraph.West.length - 1]
 				].filter(t => t !== undefined);
 				//g.push(...corners.map(p => {return {point: p.point, connections: p.connections.map(tempP => { return { point: tempP }})}}));
-				for(const nodeInfo of corners){
+				for(const nodeInfo of corners){ 
 					const graphNode = existsInGraph(nodeInfo);
 					for(const connInfo of nodeInfo.connections){
 						const connNode = existsInGraph({ point: connInfo });
