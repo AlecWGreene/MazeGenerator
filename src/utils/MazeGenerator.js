@@ -467,6 +467,21 @@ function connectGateNodes(fragment, layerNeighbours, sliceNeighbours, fragmentNe
 }
 
 /**
+ * @class
+ * 
+ * @property {GridPoint} point
+ * @property {Array<GraphNode>} connections
+ */
+class GraphNode{
+	constructor(point, initialConnections){
+		/** @type {GridPoint}  */
+		this.point = point;
+		/** @type {Array<GraphNode>} */
+		this.connections = initialConnections || [];
+	}
+}
+
+/**
  *  @function generateMaze 
  *  @description Takes a graph of grid points and generates a maze by designating traversal paths
  * 
@@ -561,9 +576,6 @@ export default function generateMaze(grid, start, endCandidates, config){
 														}
 													});
 				// Adjust for the fact that gluing the first and last slices will have the filter function reach the Eastern slice first
-				if(layer.length === 2){
-					console.log()
-				}
 				if((sliceIndex === 0 || sliceIndex === layer.length - 1)) sliceNeighbours.reverse()
 				
 			
@@ -597,9 +609,8 @@ export default function generateMaze(grid, start, endCandidates, config){
 
 				// Filter and connect gate nodes
 				const gateArray = connectGateNodes(fragment, layerNeighbours, sliceNeighbours, fragmentNeighbours, layer.length === 2);
-				fragment.gateGraph = gateArray
+				fragment.gateGraph = gateArray;
 				gateGraph.push(...Object.values(fragment.gateGraph).reduce((aggr, array) => aggr.concat(array)));
-				
 
 				// Run the requested maze generation algorithm
 				switch(fragment.type){
@@ -614,40 +625,169 @@ export default function generateMaze(grid, start, endCandidates, config){
 		}
 	}
 
-	// Consolidate fragment connections
-	// const 
-	// for(){
+	// Consolidate fragment connections and collect them into graph nodes
+	/** @type {Array<GraphNode>}  */
+	const graph = [];
+	const g = [];
+	const existsInGraph = (node) => {
+		const marginoferror = 0.1;
+		const matches = graph.filter(n => Math.abs(n.point.position.x - node.point.position.x) < marginoferror && Math.abs(n.point.position.y - node.point.position.y) < marginoferror);
+		if(matches.length > 0){
+			return matches[0];
+		}
+		else{
+			return undefined;
+		}
+	}
+	for(let layerIndex = 0; layerIndex < outline.length; layerIndex++){
+		const layer = outline[layerIndex];
+		for(let sliceIndex = 0; sliceIndex < layer.length; sliceIndex++){
+			const slice = layer[sliceIndex];
+			// Correct all the gate nodes for each fragment
+			for(let fragmentIndex = 0; fragmentIndex < slice.length; fragmentIndex++){
+				const fragment = slice[fragmentIndex];
 
-	// }
+				// For each fragment, traverse the gate nodes
+				for(const direction of ["North", "South", "East", "West"]){
+					for(const nodeInfo of fragment.gateGraph[direction]){
+						// Combine existing nodes and update connections
+						const existingNode = existsInGraph(nodeInfo);
+						if(existingNode){
+							// Add references to all existing connections
+							for(const conn of nodeInfo.connections){
+								const addToArray = existsInGraph({point: conn});
+								if(addToArray){
+									addToArray.indices = {
+										layer: layerIndex,
+										slice: sliceIndex,
+										fragment: fragmentIndex
+									}
+									existingNode.connections.push(addToArray);
+								}
+							}
+						}
+						// Create new nodes and add connections to any existing nodes
+						else{
+							const connectionArray = [];
 
+							// Add any connections which already exist
+							for(const conn of nodeInfo.connections){
+								const addToArray = existsInGraph({point: conn});
+								if(addToArray){
+									connectionArray.push(addToArray);
+								}
+							}
+
+							// Add the new point to the graph
+							const newNode = new GraphNode(nodeInfo.point, connectionArray);
+							graph.push(newNode);
+							for(const newConnection of connectionArray){
+								newConnection.connections.push(newNode);
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	for(const layer of outline){
+		for(const slice of layer){
+			for(const fragment of slice){
+				// For each east corner, add the connections if they don't exist 
+				const corners = [
+					fragment.gateGraph.East[0],
+					fragment.gateGraph.East[fragment.gateGraph.East.length - 1],
+					fragment.gateGraph.West[0],
+					fragment.gateGraph.West[fragment.gateGraph.West.length - 1]
+				].filter(t => t !== undefined);
+				//g.push(...corners.map(p => {return {point: p.point, connections: p.connections.map(tempP => { return { point: tempP }})}}));
+				for(const nodeInfo of corners){
+					const graphNode = existsInGraph(nodeInfo);
+					for(const connInfo of nodeInfo.connections){
+						const connNode = existsInGraph({ point: connInfo });
+						if(connNode){
+							if(!graphNode.connections.includes(connNode)){
+								graphNode.connections.push(connNode);
+							}
+							if(!connNode.connections.includes(graphNode)){
+								connNode.connections.push(graphNode);
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	const temp = validateGraph(graph);
+	console.log(temp);
+	g.push(...(temp || []))
 	return {
 		start: grid.points[0][0],
 		outline: outline,
-		graph: gateGraph,
+		graph: graph, //graph,
+		problems: g,
 		finishPoints: []
 	}
 }
 
-/**
- * @function selectFragmentSideGates
- * 
- * @param {MazeFragment} fragment
- * @param {"North"|"East"|"South"|"West"} direction
- */
-function selectFragmentSideGates(fragment, direction){
-	// +-1 representing which direction to test for
-	const nodes = [];
-	let orientation = 0;
-	switch(direction){
-		case "North":
-			orientation = -2;
-		case "South":
-			orientation++;
-			break
-		case "East":
-			orientation = -2;
-		case "West":
-			orientation++;
-			break
+function validateGraph(graph){
+	console.log(graph.length)
+	let errorsFound = false;
+	let badNodes = [];
+
+	// NO UNRECIPROCATED CONNECTIONS
+	for(const node of graph){
+		for(const conn of node.connections){
+			try{
+				if(!conn.connections.includes(node)){
+					if(!errorsFound)errorsFound = true;
+					badNodes.push([node, conn]);
+					console.error("dsicrepancy	")
+					console.log(node.point.position);
+					console.log(conn.point.position);
+					console.log(conn.connections.map(p => p.point.position))
+				}
+			}
+			catch(err){
+				if(!errorsFound) errorsFound = true
+				badNodes.push([node, conn]);
+			}
+		}
+	}
+	if(badNodes.length > 0){
+		console.error(`${badNodes.length} Connections without reciprocation were found`);
+		console.log(badNodes.map( value => {
+			console.log(`Origin: ${value[0].point.position.x+","+value[0].point.position.y}    Connections:(${value[1].point.position.x+","+value[1].point.position.y})`)
+			console.log(`Indices: ${JSON.stringify(value[0].indices)} and ${JSON.stringify(value[1	].indices)}`)
+		}));
+		return badNodes.map(v => { return { point: v[0].point, connections: [v[1]] }});
+	}
+	else{
+		console.log("No unreciprocated connections found!")
+	}
+
+	// NO REPEATED POINTS
+	badNodes = [];
+	for(const node of graph){
+		const index = graph.findIndex(n => n === node);
+		if(graph.filter((gNode, gIndex) => gIndex > index).filter(gNode => gNode === node).length > 0){
+			if(!errorsFound) errorsFound = true
+			const marginoferror = 0.000001;
+			badNodes.push([node, graph.filter((gNode, gIndex) => gIndex > index).filter(gNode => Math.abs(gNode.point.position.x - node.point.position.x) < marginoferror && Math.abs(gNode.point.position.y - node.point.position.y) < marginoferror)])
+		}
+	}
+	if(badNodes.length > 0){
+		console.error(`${badNodes.length} Repeated nodes were found`);
+		console.log(badNodes);
+	}
+	else{
+		console.log("No repeated nodes found!")
+	}
+
+	if(!errorsFound){
+		console.log("No errors found!")
+		console.log(graph)
 	}
 }

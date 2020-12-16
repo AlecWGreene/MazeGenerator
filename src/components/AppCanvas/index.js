@@ -85,8 +85,8 @@ export default function AppCanvas(props){
 					p5.strokeWeight(renderConfig.maze.line.stroke)
 					p5.line(node.point.position.x + appState.origin.x, 
 						node.point.position.y + appState.origin.y, 
-						connection.position.x + appState.origin.x,
-						connection.position.y + appState.origin.y);
+						connection.point.position.x + appState.origin.x,
+						connection.point.position.y + appState.origin.y);
 				}
 			}
 
@@ -102,6 +102,26 @@ export default function AppCanvas(props){
 			p5.stroke(renderConfig.maze.startPoint.color);
 			p5.strokeWeight(renderConfig.maze.startPoint.stroke)
 			p5.point(appState.maze.start.position.x + appState.origin.x, appState.maze.start.position.y + appState.origin.y);
+		}
+
+		if(appState.maze){
+			for(const node of appState.maze.problems){
+				// Draw node connections
+				for(const connection of node.connections){
+					p5.stroke("yellow");
+					p5.strokeWeight(renderConfig.maze.line.stroke * 0.8)
+					p5.line(node.point.position.x + appState.origin.x, 
+						node.point.position.y + appState.origin.y, 
+						connection.point.position.x + appState.origin.x,
+						connection.point.position.y + appState.origin.y);
+				}
+
+					// Draw node point 
+					p5.stroke("red");
+					p5.strokeWeight(renderConfig.maze.nodePoint.stroke * 0.8)
+					p5.point(node.point.position.x + appState.origin.x, node.point.position.y + appState.origin.y);
+				
+			}
 		}
 	}
 
