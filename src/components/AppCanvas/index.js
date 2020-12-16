@@ -104,7 +104,7 @@ export default function AppCanvas(props){
 			p5.point(appState.maze.start.position.x + appState.origin.x, appState.maze.start.position.y + appState.origin.y);
 		}
 
-		if(appState.maze){
+		if(appState.maze?.problems){
 			for(const node of appState.maze.problems){
 				// Draw node connections
 				for(const connection of node.connections){

@@ -663,6 +663,9 @@ export default function generateMaze(grid, start, endCandidates, config){
 										fragment: fragmentIndex
 									}
 									existingNode.connections.push(addToArray);
+									if(!addToArray.connections.includes(existingNode)){
+										addToArray.connections.push(existingNode);
+									}
 								}
 							}
 						}
@@ -690,44 +693,14 @@ export default function generateMaze(grid, start, endCandidates, config){
 			}
 		}
 	}
-
-	for(const layer of outline){
-		for(const slice of layer){
-			for(const fragment of slice){
-				// For each east corner, add the connections if they don't exist 
-				const corners = [
-					fragment.gateGraph.East[0],
-					fragment.gateGraph.East[fragment.gateGraph.East.length - 1],
-					fragment.gateGraph.West[0],
-					fragment.gateGraph.West[fragment.gateGraph.West.length - 1]
-				].filter(t => t !== undefined);
-				//g.push(...corners.map(p => {return {point: p.point, connections: p.connections.map(tempP => { return { point: tempP }})}}));
-				for(const nodeInfo of corners){ 
-					const graphNode = existsInGraph(nodeInfo);
-					for(const connInfo of nodeInfo.connections){
-						const connNode = existsInGraph({ point: connInfo });
-						if(connNode){
-							if(!graphNode.connections.includes(connNode)){
-								graphNode.connections.push(connNode);
-							}
-							if(!connNode.connections.includes(graphNode)){
-								connNode.connections.push(graphNode);
-							}
-						}
-					}
-				}
-			}
-		}
-	}
 	
-	const temp = validateGraph(graph);
-	console.log(temp);
-	g.push(...(temp || []))
+	// const temp = validateGraph(graph);
+	// g.push(...(temp || []))
 	return {
 		start: grid.points[0][0],
 		outline: outline,
-		graph: graph, //graph,
-		problems: g,
+		graph: graph, 
+		//problems: g,
 		finishPoints: []
 	}
 }
@@ -760,7 +733,7 @@ function validateGraph(graph){
 		console.error(`${badNodes.length} Connections without reciprocation were found`);
 		console.log(badNodes.map( value => {
 			console.log(`Origin: ${value[0].point.position.x+","+value[0].point.position.y}    Connections:(${value[1].point.position.x+","+value[1].point.position.y})`)
-			console.log(`Indices: ${JSON.stringify(value[0].indices)} and ${JSON.stringify(value[1	].indices)}`)
+			console.log(`Indices: ${JSON.stringify(value[0].indices)} and ${JSON.stringify(value[1].indices)}`)
 		}));
 		return badNodes.map(v => { return { point: v[0].point, connections: [v[1]] }});
 	}
