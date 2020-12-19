@@ -1,16 +1,19 @@
-import React, { useEffect, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
+import { CellsizeContext } from "./index.js";
 
 export default function Slider(props){
+	const [cellsize, updateCellsize] = useContext(CellsizeContext);
 	const [value, setValue] = useState(20);
 
 	const bounds = {
 		min: 1,
-		max: 50,
-		step: 0.25
+		max: 40,
+		step: 0.15
 	};
 
+	// Update cellsize context value
 	useEffect(() => {
-		props.output.current = value;
+		updateCellsize(value)
 	}, [value]);
 
 	return (

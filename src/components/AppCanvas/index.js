@@ -31,7 +31,7 @@ export default function AppCanvas(props){
 				color: "green"
 			},
 			nodePoint: {
-				stroke: 7,
+				stroke: 3.25,
 				color: "blue"
 			},
 			line: {
@@ -102,64 +102,67 @@ export default function AppCanvas(props){
 			p5.stroke(renderConfig.maze.startPoint.color);
 			p5.strokeWeight(renderConfig.maze.startPoint.stroke)
 			p5.point(appState.maze.start.position.x + appState.origin.x, appState.maze.start.position.y + appState.origin.y);
-		}
 
-		if(appState.maze?.problems){
-			for(const node of appState.maze.problems){
-				// Draw node connections
-				for(const connection of node.connections){
-					p5.stroke("yellow");
-					p5.strokeWeight(renderConfig.maze.line.stroke * 0.8)
-					p5.line(node.point.position.x + appState.origin.x, 
-						node.point.position.y + appState.origin.y, 
-						connection.point.position.x + appState.origin.x,
-						connection.point.position.y + appState.origin.y);
+			// Draw problem nodes, for debugging
+			if(appState.maze?.problems){
+				for(const node of appState.maze.problems){
+					// Draw node connections
+					for(const connection of node.connections){
+						p5.stroke("yellow");
+						p5.strokeWeight(renderConfig.maze.line.stroke * 0.8)
+						p5.line(node.point.position.x + appState.origin.x, 
+							node.point.position.y + appState.origin.y, 
+							connection.point.position.x + appState.origin.x,
+							connection.point.position.y + appState.origin.y);
+					}
+
+						// Draw node point 
+						p5.stroke("red");
+						p5.strokeWeight(renderConfig.maze.nodePoint.stroke * 0.15)
+						p5.point(node.point.position.x + appState.origin.x, node.point.position.y + appState.origin.y);
+					
 				}
-
-					// Draw node point 
-					p5.stroke("red");
-					p5.strokeWeight(renderConfig.maze.nodePoint.stroke * 0.8)
-					p5.point(node.point.position.x + appState.origin.x, node.point.position.y + appState.origin.y);
-				
 			}
 		}
 	}
 
 	// DEBUGGING draws the maze outline
 	const drawOutline = (p5) => {
-		let color = {
-			layer: 80,
-			slice: 40,
-			fragment: 70
-		}
-		let counter = {
-			layer: 1,
-			slice: 1,
-			fragment: 1 
-		}
+		if(appState.maze){
+			let color = {
+				layer: 80,
+				slice: 40,
+				fragment: 70
+			}
+			let counter = {
+				layer: 1,
+				slice: 1,
+				fragment: 1 
+			}
 
-		// Layers
-		for(const layer of appState.maze.outline){
-			counter.layer++;
-			counter.slice = 1;
-			for(const slice of layer){
-				counter.slice++;
-				counter.fragment = 1;
-				for(const fragment of slice){
-					counter.fragment++;
-					for(const row of fragment.subgraph){
-						for(const point of row){
-							// if(point.weight){
-							// p5.stroke(255 * point.weight,255 * point.weight,255 * point.weight);
-							//p5.stroke((color.layer * counter.layer) * 2 / counter.fragment, ((2.2 * counter.slice * color.slice - color.layer * counter.layer)) * 2 / counter.fragment, (color.layer * counter.slice) * 2 / counter.fragment);
-							p5.stroke(
-								(color.layer * counter.layer) * 1.5 / counter.fragment,
-								(color.slice * counter.slice) * 3 / counter.fragment,
-								((color.layer * counter.layer) + (color.slice * counter.slice)) / (2 * counter.fragment)
-							);
-							p5.strokeWeight(renderConfig.maze.nodePoint.stroke);
-							p5.point(point.position.x + appState.origin.x, point.position.y + appState.origin.y);
-							
+			// Layers
+			for(const layer of appState.maze.outline){
+				counter.layer++;
+				counter.slice = 1;
+				for(const slice of layer){
+					counter.slice++;
+					counter.fragment = 1;
+					for(const fragment of slice){
+						counter.fragment++;
+						for(const row of fragment.subgraph){
+							for(const point of row){
+								// if(point.weight){
+								// p5.stroke(255 * point.weight,255 * point.weight,255 * point.weight);
+								//p5.stroke((color.layer * counter.layer) * 2 / counter.fragment, ((2.2 * counter.slice * color.slice - color.layer * counter.layer)) * 2 / counter.fragment, (color.layer * counter.slice) * 2 / counter.fragment);
+								p5.stroke(
+									(color.layer * counter.layer) * 1.5 / counter.fragment,
+									(color.slice * counter.slice) * 3 / counter.fragment,
+									((color.layer * counter.layer) + (color.slice * counter.slice)) / (2 * counter.fragment)
+								);
+								p5.strokeWeight(renderConfig.maze.nodePoint.stroke);
+								p5.point(point.position.x + appState.origin.x, point.position.y + appState.origin.y);
+								
+							}
 						}
 					}
 				}
@@ -188,7 +191,7 @@ export default function AppCanvas(props){
 		if(renderer && appState.grid){
 			renderer.clear();
 			drawGrid(renderer);
-			drawOutline(renderer);
+			//drawOutline(renderer);
 			drawMaze(renderer);
 		}
 	}, [appState.maze, appState.origin, appState.grid, renderer]);

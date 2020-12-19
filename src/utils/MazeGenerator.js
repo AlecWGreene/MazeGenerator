@@ -54,7 +54,7 @@ export class MazeLayer {
  * 
  * @property {"ring"|"braid"|"branch"} type The requested maze generation algorithm to run on the graph
  * @property {Array<Array<GridPoint>>} subgraph The jagged array of grid points which make up the maze fragment
- * @property {Array<GraphNode>} gateGraph The graph of nodes which make up the fragment gates
+ * @property {Object.<string,Array<GraphNode>>} gateGraph The graph of nodes which make up the fragment gates
  * @property {Array<"North"|"East"|"South"|"West">} connections The array of strings representing which directions this fragment connects to other fragments in, using the compass directions
  * @property {Object<string,Array<GridPoint>>} gates The set of connections into or out of the fragment
  */
@@ -65,17 +65,17 @@ export class MazeLayer {
  * 
  * @property {LayerFragment} defaultFragment Fragment with floatsize 1 to be used in any leftover fragments
  * @property {Array.<MazeLayer>} layers Enumerated layers to incorporate into the maze
- * @property {number} seed The seed to feed into the generators
+ * @property {string} seed The seed to feed into the generators
  * 
  * @method generateOutline Given a grid, will output the subgraphs to run maze generation algorithms on
  */
 export class MazeConfig{
-	constructor(defaultFragment, layers, seed, delay){
+	constructor(defaultFragment, layers, seed){
 		/** @type {LayerFragment} Fragment with floatsize 1 to be used in any leftover fragments */
 		this.defaultFragment = defaultFragment;
 		/** @type {Array<MazeLayer>} layers Enumerated layers to incorporate into the maze */
 		this.layers = layers;
-		/** @type {number} seed The seed to feed into the generators */
+		/** @type {string} seed The seed to feed into the generators */
 		this.seed = seed;
 	}
 
@@ -220,9 +220,344 @@ export class MazeConfig{
  * @function generateRingMaze
  * @description Giving a subgrid and starting/ending points, generate a maze using Prim's algorithm
  * 
+ * @param {MazeFragment} fragment
+ * @param {Array<GraphNode>} startArray
+ * @param {Array<GraphNode>} endArray
+ * @param {numberGenerator} rand 
+ * 
+ * @returns {Array<GraphNode>}
  */
-function generateRingMaze(grid, startArray, endArray, config){
+function generateRingMaze(fragment, startArray, rand){
+	generateWeights(rand, fragment.subgraph);
+	const graph = [];
+	const marginoferror = 0.1;
+
+	// Select the root node
+	const root = startArray[0];
+	graph.push(root)
+	const getValidNeighbours = (point) => {
+		return point.neighbours.filter(p => fragment.subgraph.filter(row => row.includes(p)).length > 0)
+	}
+	let open = getValidNeighbours(root.point);
+
+	while(open.length > 0){
+		// Find connections which overlap the lowestCostPoint
+		const lowestCostPoint = open.reduce((previous, current) => current.weight < previous.weight ? current : previous);
+		const sourceNode = graph.find(n => n.point.neighbours.includes(lowestCostPoint));
+
+		// Create a new GraphNode and add the connection to the sourcenode
+		const newNode = new GraphNode(lowestCostPoint, [sourceNode]);
+		sourceNode.connections.push(newNode);
+		graph.push(newNode);
+		open.push(...getValidNeighbours(newNode.point));
+		open = open.filter(p => p !== lowestCostPoint && graph.filter(n => n.point === p).length === 0);
+	}
 	
+	return graph;
+}
+
+/**
+ * @function generateBranchMaze
+ * @description Uses a ternary tree to create branching paths through the fragment in the style of the sidewinder algorithm
+ * 
+ * @param {MazeFragment} fragment
+ * @param {Array<GraphNode>} startArray
+ * @param {"North"|"East"|"South"|"West"} wallSide
+ * @param {numberGenerator} rand 
+ * 
+ * @returns {Array<GraphNode>|undefined}
+ */
+function generateBranchMaze(fragment, startArray, wallSide, rand){
+
+	// Setup constants
+	const graph = [[]];
+	const gates = []
+	const marginoferror = 0.1;
+	const crossAxis = (wallSide === "South") ? ("East") : 
+						((wallSide === "North") ? ("West") : 
+						 (wallSide === "East") ? ("North") : 
+						 						  "South");
+	const getValidNeighbours = (point) => {
+		return point.neighbours.filter(p => fragment.subgraph.filter(row => row.includes(p)).length > 0)
+	}
+	const getGraphNode = (point) => {
+		// Get all existing nodes
+		const nodeArray = Object.values(fragment.gateGraph).reduce((aggr, array) => aggr.concat(array)).concat(graph.reduce((aggr, array) => aggr.concat(array)));
+
+		// Compare node points to point
+		let graphNode;
+		try{
+			graphNode = nodeArray.filter(node => Math.hypot(node.point.position.x - point.position.x, node.point.position.y - point.position.y) < marginoferror)[0]
+		}
+		catch(error){
+			console.log(error, graph);
+		}
+		return graphNode || undefined;
+	}
+	
+
+	// Generate the starting ring which connects to its 2 neighbors
+	const startingRing = [];
+	switch(wallSide){
+		case "North":
+			startingRing.push(...fragment.subgraph[fragment.subgraph.length - 1]);
+			break;
+		case "East":
+			startingRing.push(...fragment.subgraph.map(row => row[row.length - 1]));
+			break;
+		case "South":
+			startingRing.push(...fragment.subgraph[0]);
+			break;
+		case "West":
+			startingRing.push(...fragment.subgraph.map(row => row[0]));
+			break;
+	}
+
+	for(let ringIndex = 0; ringIndex < startingRing.length; ringIndex++){
+		const point = startingRing[ringIndex];
+		
+		// Create a GraphNode if the point does not have a gate node on it
+		let gateNode = startArray.filter(startNode => Math.hypot(point.position.x - startNode.point.position.x, point.position.y - startNode.point.position.y) < marginoferror)[0];
+		if(gateNode === undefined){
+			gateNode = new GraphNode(point, []);
+
+			if(graph[0].length > 0){
+				gateNode.connections.push(graph[0][graph[0].length - 1]);
+				graph[0][graph[0].length - 1].connections.push(gateNode);
+			}
+		}
+		else{
+			if(graph[0].length > 0){
+				gateNode.connections.push(graph[0][graph[0].length - 1]);
+				graph[0][graph[0].length - 1].connections.push(gateNode);
+			}
+			
+			gates.push(gateNode);
+		}
+		
+		graph[0].push(gateNode);
+	}
+
+	// Setup helper variables to account for the starting side
+	/** @type {Array<GraphNode>} */
+	let previousRun = graph[0];
+	/** @type {Array<GraphNode>} */
+	let currentLayer = [];
+	const numberRuns = (wallSide === "East" || wallSide === "West") ? fragment.subgraph[0].length : fragment.subgraph.length;
+
+	/**
+	 * @function getLayer
+	 * @description Computes the next layer of nodes to feed into the algorithm given an index and the previous run
+	 * 
+	 * @param {Array<GraphNode>} previousLayer
+	 * @param {number} index
+	 * 
+	 * @returns {Array<GraphNode>}
+	 */
+	const generateNextLayer = (previousLayer, index) => {
+		const layer = [];
+		/** @type {GridPoint} */
+		let startPoint;
+		switch(wallSide){
+			case "North":
+				if(index >= fragment.subgraph.length) return []
+				return fragment.subgraph[fragment.subgraph.length - 1 - index].map(
+					point => {
+						const node = getGraphNode(point);
+						return node ? node : new GraphNode(point, []);
+					}
+				);
+			case "South":
+				if(index >= fragment.subgraph.length) return []
+				return fragment.subgraph[index].map(
+					point => {
+						const node = getGraphNode(point);
+						return node ? node : new GraphNode(point, []);
+					}
+				);
+			case "East":
+				if(index >= fragment.subgraph[0].length) return []
+				startPoint = fragment.subgraph[0][fragment.subgraph[0].length - 1 - index];
+				break;
+			case "West":
+				if(index >= fragment.subgraph[0].length) return []
+				startPoint = fragment.subgraph[0][index];
+				break;
+		}
+
+		// Code only runs when wallside is east or west
+		let startNode = getGraphNode(startPoint);
+		if(startNode === undefined) startNode = new GraphNode(startPoint, []);
+		layer.push(startNode);
+
+		// Setup helpers
+		const numLayers = fragment.subgraph.length;
+		const addNodeToRun = (point, layerIndex, numLayers) => {
+			if(!point) throw new Error("Fuck yourself")
+			let possibleNode;
+			if(layerIndex === numLayers - 1) possibleNode = getGraphNode(point);
+			if(possibleNode){
+				layer.push(possibleNode);
+			}
+			else{
+				layer.push(new GraphNode(point, []));
+			}
+		}
+
+		// Iterate through each layer and search for corners
+		switch(wallSide){
+			case "East":
+				for(let layerIndex = 0; layerIndex < numLayers; layerIndex++){
+					const openPoints = fragment.subgraph[layerIndex].map((p,i) => [i,p]).filter(([pointIndex, point]) => layer.filter(node => node.point.neighbours.includes(point)).length > 0);
+					if(openPoints.length > 0){
+						const lastOpenIndex = openPoints[0][0];
+						const closedPoints = fragment.subgraph[layerIndex].map((p,i) => [i,p]).filter(([pointIndex, point]) => pointIndex >= lastOpenIndex && previousLayer.filter(node => node.point === point).length > 0);
+						
+						if(closedPoints.length > 0){
+							const lastClosedIndex = closedPoints[0][0];
+							
+							
+							for(let pointIndex = lastOpenIndex; pointIndex < lastClosedIndex; pointIndex++){
+								addNodeToRun(fragment.subgraph[layerIndex][pointIndex], layerIndex, numLayers)
+							}
+						}
+					}
+				}
+				break;
+			case "West":
+				for(let layerIndex = 1; layerIndex < numLayers; layerIndex++){
+					const lastClosedIndex = fragment.subgraph[layerIndex].map((p,i) => [i,p]).filter(([pointIndex, point]) => previousLayer.filter(node => node.point === point).length > 0).pop()[0];
+					const lastOpenIndex = fragment.subgraph[layerIndex].findIndex((point, pointIndex) => pointIndex > lastClosedIndex && layer.filter(node => node.point.neighbours.includes(point)).length > 0);
+					
+					for(let pointIndex = lastOpenIndex; pointIndex > lastClosedIndex; pointIndex--){
+						addNodeToRun(fragment.subgraph[layerIndex][pointIndex], layerIndex, numLayers)
+					}
+				}
+				break;
+		}
+
+		return layer;
+	}
+
+	// Use sidewinder algorithm to connect the nodes generated by generateNextRun
+	let runIndex = 1;
+	let weightTotal = 0;
+	currentLayer = generateNextLayer(previousRun, runIndex);
+	let runBias = 0.7 * Math.sqrt(currentLayer.length);
+	while(currentLayer.length > 0){
+		
+		// Iterate over the nodes in the run and connect them into segments
+		let currentRun = [currentLayer[0]];
+		for(let nodeIndex = 1; nodeIndex < currentLayer.length; nodeIndex++){
+			weightTotal += rand();
+
+			if(weightTotal > runBias || nodeIndex === currentLayer.length - 1){
+				weightTotal = 0;
+				
+				// Generate a random connection to the previous run
+				const possibleConnections = [];
+				for(const node of currentRun){
+					const conn = previousRun.filter(n => n.point.neighbours.includes(node.point));
+					if(conn.length > 0){
+						possibleConnections.push([node, conn]);
+					}
+				}
+
+				if(possibleConnections.length > 0){
+					const connNodeIndex = Math.floor(rand() * possibleConnections.length);
+					const connConnIndex = Math.floor(rand() * possibleConnections[connNodeIndex][1].length);
+					possibleConnections[connNodeIndex][0].connections.push(possibleConnections[connNodeIndex][1][connConnIndex]);
+					possibleConnections[connNodeIndex][1][connConnIndex].connections.push(possibleConnections[connNodeIndex][0]);
+				}
+
+				// Reset run to the current node
+				if(nodeIndex === currentLayer.length - 1){
+					currentLayer[nodeIndex].connections.push(currentLayer[nodeIndex - 1]);
+					currentLayer[nodeIndex - 1].connections.push(currentLayer[nodeIndex]);
+				}
+				
+				// Restart the run
+				currentRun = [currentLayer[nodeIndex]];
+			}	
+			else{
+				currentRun.push(currentLayer[nodeIndex]);
+				currentLayer[nodeIndex].connections.push(currentLayer[nodeIndex - 1]);
+				currentLayer[nodeIndex - 1].connections.push(currentLayer[nodeIndex]);
+			}
+		}
+
+		// Push current run to graph
+		graph.push(currentLayer);
+
+		// Move onto the next run
+		runIndex++;
+		previousRun = currentLayer;
+		currentLayer = generateNextLayer(previousRun, runIndex);
+		runBias = 0.5 * Math.sqrt(currentLayer.length);
+		weightTotal = 0;
+	}
+
+	// Connect gates to the last layer
+	switch(wallSide){
+		case "East":
+			break;
+		case "West":
+			break;
+	}
+
+	// TODO: Consolidate gate nodes
+
+	return graph.reduce((aggr, array) => aggr.concat(array));
+}
+
+/**
+ * @function
+ * 
+ * @description A basic hash function which takes string and returns a fuction that returns deterministic seeds credit: https://stackoverflow.com/questions/521295/seeding-the-random-number-generator-in-javascript
+ * 
+ * @param {string} str The starting seed for the generator 
+ */
+const xmur3 = (str) => {
+	for(var i = 0, h = 1779033703 ^ str.length; i < str.length; i++)
+		h = Math.imul(h ^ str.charCodeAt(i), 3432918353)
+		h = h << 13 | h >>> 19;
+	return function() {
+		h = Math.imul(h ^ h >>> 16, 2246822507);
+		h = Math.imul(h ^ h >>> 13, 3266489909);
+		return (h ^= h >>> 16) >>> 0;
+	}
+}
+
+/**
+ * @callback numberGenerator
+ * 
+ * @returns {number}
+ */
+
+/**
+ * @callback prng
+ * 
+ * @param {...number} args Numbers used to see the number generator
+ * 
+ * @returns {numberGenerator}
+ */
+
+/** @type {Object<string,prng>} Object containing different pseudorandom number generators */
+const prng = {
+	/** credit: https://stackoverflow.com/questions/521295/seeding-the-random-number-generator-in-javascript */
+	 sfc32: (a, b, c, d) => {
+				return function() {
+					a >>>= 0; b >>>= 0; c >>>= 0; d >>>= 0; 
+					var t = (a + b) | 0;
+					a = b ^ b >>> 9;
+					b = c + (c << 3) | 0;
+					c = (c << 21 | c >>> 11);
+					d = d + 1 | 0;
+					t = t + d | 0;
+					c = c + t | 0;
+					  return (t >>> 0) / 4294967296;
+				}
+			}
 }
 
 /**
@@ -230,52 +565,12 @@ function generateRingMaze(grid, startArray, endArray, config){
  * 
  * @description Adds weights onto a weight property of all the grid points in the graph using a seeded pseudorandom number generator
  * 
- * @property {string} seed String used to seed the pseurandom number generator 
+ * @property {string} rand Seeded random number generator 
  * @property {Array<Array<GridPoint>>} graph A jagged array of grid points to assign weights to
  * 
  * @returns {void} 
  */
-function generateWeights(seed, graph){
-	/**
-	 * @function
-	 * 
-	 * @description A basic hash function which takes string and returns a fuction that returns deterministic seeds credit: https://stackoverflow.com/questions/521295/seeding-the-random-number-generator-in-javascript
-	 * 
-	 * @param {string} str The starting seed for the generator 
-	 */
-	const xmur3 = (str) => {
-		for(var i = 0, h = 1779033703 ^ str.length; i < str.length; i++)
-			h = Math.imul(h ^ str.charCodeAt(i), 3432918353)
-			h = h << 13 | h >>> 19;
-		return function() {
-			h = Math.imul(h ^ h >>> 16, 2246822507);
-			h = Math.imul(h ^ h >>> 13, 3266489909);
-			return (h ^= h >>> 16) >>> 0;
-		}
-	}
-
-	/** Different pseudorandom algorithms to use for weights */
-	const prng = {
-		/** credit: https://stackoverflow.com/questions/521295/seeding-the-random-number-generator-in-javascript */
-		 sfc32: (a, b, c, d) => {
-					return function() {
-						a >>>= 0; b >>>= 0; c >>>= 0; d >>>= 0; 
-						var t = (a + b) | 0;
-						a = b ^ b >>> 9;
-						b = c + (c << 3) | 0;
-						c = (c << 21 | c >>> 11);
-						d = d + 1 | 0;
-						t = t + d | 0;
-						c = c + t | 0;
-		  				return (t >>> 0) / 4294967296;
-					}
-				}
-	}
-
-	// Generate the weight using a pseudorandom algorithm
-	const seedGenerator = xmur3(seed);
-	const seedArray = [seedGenerator(), seedGenerator(), seedGenerator(), seedGenerator()];
-	const rand = prng.sfc32(...seedArray);
+function generateWeights(rand, graph){
 	for(const row of graph){
 		for(const point of row){
 			point.weight = rand();
@@ -287,7 +582,7 @@ function generateWeights(seed, graph){
  * @function generateFragmentGates
  * @param {MazeFragment} fragment 
  */
-function generateFragmentGates(fragment, directions){
+function generateFragmentGates(fragment, directions, rand){
 	const gates = {
 		"North": [],
 		"East": [],
@@ -295,7 +590,7 @@ function generateFragmentGates(fragment, directions){
 		"West": []
 	};
 
-	const gatePercentage = 0.5;
+	const gatePercentage = 0.25;
 	for(const direction of directions){
 		let numGates = 0;
 		switch (direction) {
@@ -312,10 +607,10 @@ function generateFragmentGates(fragment, directions){
 						if(i === numGates - 1){
 							// Pick from the remaining points
 							const remainingCount = nring.length - i * nPartitionLength;
-							nselection = Math.floor(Math.random() * remainingCount);
+							nselection = Math.floor(rand() * remainingCount);
 						}
 						else{
-							nselection = Math.floor(Math.random() * nPartitionLength);
+							nselection = Math.floor(rand() * nPartitionLength);
 						}
 
 						gates.North.push(nring[i * nPartitionLength + nselection]);
@@ -340,10 +635,10 @@ function generateFragmentGates(fragment, directions){
 						if(i === numGates - 1){
 							// Pick from the remaining points
 							const remainingCount = sring.length - i * sPartitionLength;
-							sselection = Math.floor(Math.random() * remainingCount);
+							sselection = Math.floor(rand() * remainingCount);
 						}
 						else{
-							sselection = Math.floor(Math.random() * sPartitionLength);
+							sselection = Math.floor(rand() * sPartitionLength);
 						}
 
 						gates.South.push(sring[i * sPartitionLength + sselection]);
@@ -364,10 +659,10 @@ function generateFragmentGates(fragment, directions){
 						if(i === numGates - 1){
 							// Pick from the remaining points
 							const remainingCount = eslice.length - i * ePartitionLength;
-							eselection = Math.floor(Math.random() * remainingCount);
+							eselection = Math.floor(rand() * remainingCount);
 						}
 						else{
-							eselection = Math.floor(Math.random() * ePartitionLength);
+							eselection = Math.floor(rand() * ePartitionLength);
 						}
 
 						epointArray.push(eslice[i * ePartitionLength + eselection]);
@@ -390,10 +685,10 @@ function generateFragmentGates(fragment, directions){
 						if(i === numGates - 1){
 							// Pick from the remaining points
 							const remainingCount = wslice.length - i * wPartitionLength;
-							wselection = Math.floor(Math.random() * remainingCount);
+							wselection = Math.floor(rand() * remainingCount);
 						}
 						else{
-							wselection = Math.floor(Math.random() * wPartitionLength);
+							wselection = Math.floor(rand() * wPartitionLength);
 						}
 
 						wpointArray.push(wslice[i * wPartitionLength + wselection]);
@@ -495,15 +790,21 @@ export default function generateMaze(grid, start, endCandidates, config){
 	const outline = config.generateOutline(grid);
 	const gateGraph = [];
 
+	// Generate the weight using a pseudorandom algorithm
+	const seedGenerator = xmur3(config.seed);
+	const seedArray = [seedGenerator(), seedGenerator(), seedGenerator(), seedGenerator()];
+	const rand = prng.sfc32(...seedArray);
+
 	// Select gate nodes for connecting the fragments
 	for(const layer of outline){
 		for(const slice of layer){
 			for(const fragment of slice){
-				fragment.gates = generateFragmentGates(fragment, fragment.connections);
+				fragment.gates = generateFragmentGates(fragment, fragment.connections, rand);
 			}
 		}
 	}
 
+	// ====================================================== GENERATE CONNECTING GATES BETWEEN FRAGMENTS ======================================================
 	// Iterate over each fragment to generate fragment connections
 	for(let layerIndex = 0; layerIndex < outline.length; layerIndex++){
 		const layer = outline[layerIndex];
@@ -598,7 +899,7 @@ export default function generateMaze(grid, start, endCandidates, config){
 				}
 
 				// Add the empty arrays to align the fragment indices
-				if(fragmentNeighbours.length === 1){
+				if(fragmentNeighbours?.length === 1){
 					if(fragmentIndex === 0){
 						fragmentNeighbours.unshift([])
 					}
@@ -611,24 +912,14 @@ export default function generateMaze(grid, start, endCandidates, config){
 				const gateArray = connectGateNodes(fragment, layerNeighbours, sliceNeighbours, fragmentNeighbours, layer.length === 2);
 				fragment.gateGraph = gateArray;
 				gateGraph.push(...Object.values(fragment.gateGraph).reduce((aggr, array) => aggr.concat(array)));
-
-				// Run the requested maze generation algorithm
-				switch(fragment.type){
-					case "branch":
-					case "braid":
-					case "ring":
-						break;
-					default:
-						throw new Error(`Fragment type ${fragment.type} is not recognized`)
-				}
 			}
 		}
 	}
 
+	// ====================================================== GENERATE INITIAL GATE GRAPH NODES ======================================================
 	// Consolidate fragment connections and collect them into graph nodes
 	/** @type {Array<GraphNode>}  */
 	const graph = [];
-	const g = [];
 	const existsInGraph = (node) => {
 		const marginoferror = 0.1;
 		const matches = graph.filter(n => Math.abs(n.point.position.x - node.point.position.x) < marginoferror && Math.abs(n.point.position.y - node.point.position.y) < marginoferror);
@@ -648,6 +939,12 @@ export default function generateMaze(grid, start, endCandidates, config){
 				const fragment = slice[fragmentIndex];
 
 				// For each fragment, traverse the gate nodes
+				const gates= {
+					"North": [],
+					"South": [],
+					"East": [],
+					"West": []
+				}
 				for(const direction of ["North", "South", "East", "West"]){
 					for(const nodeInfo of fragment.gateGraph[direction]){
 						// Combine existing nodes and update connections
@@ -684,17 +981,75 @@ export default function generateMaze(grid, start, endCandidates, config){
 							// Add the new point to the graph
 							const newNode = new GraphNode(nodeInfo.point, connectionArray);
 							graph.push(newNode);
+							gates[direction].push(newNode)
 							for(const newConnection of connectionArray){
 								newConnection.connections.push(newNode);
 							}
 						}
 					}
 				}
+
+				fragment.gateGraph = gates;
+			}
+		}
+	}
+
+	// ====================================================== FRAGMENT MAZE GENERATION ======================================================
+
+	// Iterate through each fragment starting at the center
+	for(let layerIndex = 0; layerIndex < outline.length; layerIndex++){
+		const layer = outline[layerIndex];
+		for(let sliceIndex = 0; sliceIndex < layer.length; sliceIndex++){
+			const slice = layer[sliceIndex];
+			for(let fragmentIndex = 0; fragmentIndex < slice.length; fragmentIndex++){
+				const fragment = slice[fragmentIndex];
+
+				// Generate a maze fragment
+				let maze = [];
+				let startArray = fragment.gateGraph.South;
+				if(layerIndex === 0){
+					const point = existsInGraph({ point: grid.points[0][0]});
+					if(point){
+						startArray.push(point);
+					}
+					else{
+						const start = new GraphNode(grid.points[0][0], []);
+						graph.push(start);
+						startArray.push(start);
+					}
+				}
+				else{
+					if(startArray.length === 0){
+						startArray = fragment.gateGraph.North;
+					}
+					if(startArray.length === 0){
+						startArray = fragment.gateGraph.East
+					}
+					if(startArray.length === 0){
+						startArray = fragment.gateGraph.West
+					}
+				}
+
+				// Run the generation algorithm
+				switch(fragment.type){
+					case "ring":
+						maze = generateRingMaze(fragment, startArray, rand);
+						break;
+					case "branch":
+						maze = generateBranchMaze(fragment, startArray, "East", rand);
+						break;
+					case "braid":
+						break;
+				}
+
+				// Push fragment to graph
+				graph.push(...maze)
 			}
 		}
 	}
 	
 	// const temp = validateGraph(graph);
+	// const g = [];
 	// g.push(...(temp || []))
 	return {
 		start: grid.points[0][0],
