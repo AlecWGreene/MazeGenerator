@@ -8,9 +8,8 @@ import useMazeGenerator from "./useMazeGenerator";
 
 export const CellsizeContext = createContext();
 
-const mazeSettings = {
-	start: [0,0],
-	outline: new MazeConfig(
+const mazeOutlineArray = [
+	new MazeConfig(
 		"ring", [
 			// First layer
 			new MazeLayer(1, [
@@ -27,11 +26,10 @@ const mazeSettings = {
 				// Slice 1-1
 				[
 					new LayerFragment("branch", 1.5, ["North", "East", "South", "West"]),
-					new LayerFragment("ring", 1, ["North", "East", "South", "West"])
 				],
 				// Slice 1-2
 				[
-					new LayerFragment("ring", 1, ["East", "West"])
+					new LayerFragment("braid", 1, ["East", "West"])
 				]
 			], [0.7, 1.2, 0.7], "ring"),
 			// Third layer
@@ -40,8 +38,98 @@ const mazeSettings = {
 					new LayerFragment("braid", 1, ["North", "East", "South", "West"])
 				]
 			], [1], "braid")
-		], "Alec"
-	)
+		], "Alec"),
+	// Outline 2 
+	new MazeConfig(
+		"ring", [
+			// First layer
+			new MazeLayer(1, [
+				[
+					new LayerFragment("ring", 1, ["North", "East", "South", "West"])
+				]
+			], [1], "ring"),
+			// Second layer
+			new MazeLayer(1, [
+				// Slice 1-0
+				[
+					new LayerFragment("branch", 1.5, ["North", "South"])
+				],
+				// Slice 1-1
+				[
+					new LayerFragment("branch", 1.5, ["North", "South"])
+				]
+			], [0.7, 0.7], "ring"),
+			// Third layer
+			new MazeLayer(1, [
+				[
+					new LayerFragment("braid", 1, ["North", "East", "South", "West"])
+				]
+			], [1], "braid")
+		], "Alec"),
+	// Oultine 3
+	new MazeConfig(
+		"ring", [
+			// First layer
+			new MazeLayer(1, [
+				[
+					new LayerFragment("braid", 1, ["North", "East", "South", "West"])
+				]
+			], [1], "ring"),
+			// Second layer
+			new MazeLayer(1, [
+				// Slice 1-0
+				[
+					new LayerFragment("ring", 1.5, ["North", "South"])
+				]
+			], [0.7], "ring"),
+			// Third layer
+			new MazeLayer(1, [
+				[
+					new LayerFragment("branch", 1, ["North", "East", "South", "West"])
+				]
+			], [1], "braid")
+		], "Alec"),
+	// Outline 4
+	new MazeConfig(
+		"ring", [
+			// First layer
+			new MazeLayer(1, [
+				[
+					new LayerFragment("branch", 1, ["North", "East", "South", "West"])
+				]
+			], [0.3], "ring"),
+			// Second layer
+			new MazeLayer(2, [
+				// Slice 1-0
+				[
+					new LayerFragment("braid", 1.5, ["North", "East", "South"])
+				],
+				[ 
+					new LayerFragment("braid", 1.5, ["North", "East", "South"])
+				]
+			], [0.7, 0.2], "ring"),
+			// Third layer
+			new MazeLayer(1.2, [
+				[
+					new LayerFragment("ring", 1, ["North", "South"])
+				],
+				[
+					new LayerFragment("ring", 1, ["South"])
+				]
+			], [1, 1], "braid"),
+			// Fourth layer
+			new MazeLayer(1, [
+				// Slice 1-0
+				[
+					new LayerFragment("braid", 1.5, ["North", "South"])
+				]
+			], [1], "ring")
+		], "Alec")
+]
+
+const mazeSettings = {
+	start: [0,0],
+	outline: mazeOutlineArray[3]
 	// outline: new MazeConfig("ring", [
 	// 	new MazeLayer(1, [
 	// 		[

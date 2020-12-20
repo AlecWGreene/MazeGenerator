@@ -416,7 +416,6 @@ function generateBranchMaze(fragment, startArray, wallSide, rand){
 						if(closedPoints.length > 0){
 							const lastClosedIndex = closedPoints[0][0];
 							
-							
 							for(let pointIndex = lastOpenIndex; pointIndex < lastClosedIndex; pointIndex++){
 								addNodeToRun(fragment.subgraph[layerIndex][pointIndex], layerIndex, numLayers)
 							}
@@ -502,12 +501,178 @@ function generateBranchMaze(fragment, startArray, wallSide, rand){
 		case "East":
 			break;
 		case "West":
+			for(const gate of fragment.gateGraph.East){
+				// Find the closest node to the gate
+				let closestNode;
+				for(const node of graph[graph.length - 1]){
+					if(!closestNode || Math.hypot(node.point.position.x - gate.point.position.x, node.point.position.y - gate.point.position.y) < Math.hypot(closestNode.point.position.x - gate.point.position.x, closestNode.point.position.y - gate.point.position.y)){
+						closestNode = node;
+					}
+				}
+
+				//Add the connection if they are neighbours
+				if(closestNode.point.neighbours.includes(gate.point)){
+					closestNode.connections.push(gate);
+					gate.connections.push(closestNode);
+
+				}
+				else{
+					// Find the closes neighbour
+					let nextNeighbour = closestNode.point;
+					let nextNode = closestNode
+					while(!gate.point.neighbours.includes(nextNeighbour)){
+						for(const point of nextNeighbour.neighbours){
+							if(!nextNeighbour || Math.hypot(point.position.x - gate.point.position.x, point.position.y - gate.point.position.y) < Math.hypot(nextNeighbour.position.x - gate.point.position.x, nextNeighbour.position.y - gate.point.position.y)){
+								nextNeighbour = point;
+							}
+						}
+
+						// Create a node and connect it to the previous node
+						nextNode = getGraphNode(nextNeighbour);
+						if(!nextNode) nextNode = new GraphNode(nextNeighbour, []);
+						graph.push([nextNode]);
+						nextNode.connections.push(closestNode);
+						closestNode.connections.push(nextNode);
+
+						if(gate.point.neighbours.includes(nextNeighbour)){
+							gate.connections.push(nextNode);
+							nextNode.connections.push(gate);
+						}
+					}
+
+					// Connect the neighbouring node to the gate
+					gates.push(gate)
+				}
+			}
 			break;
 	}
 
-	// TODO: Consolidate gate nodes
+	// Consolidate gate node connections
+	for(const gate of gates){
+		const fragGate = Object.values(fragment.gateGraph).reduce((aggr, array) => aggr.concat(array)).find(g => g.point === gate.point);
+		fragGate.connections.push(...gate.connections);
+	}
 
-	return graph.reduce((aggr, array) => aggr.concat(array));
+	return graph.reduce((aggr, array) => aggr.concat(array)).filter(node => !gates.includes(node));
+}
+
+/**
+ * @function generateBraidMaze
+ * @descriptio Uses random weighting to generate a maze with no dead ends
+ * 
+ * @param {MazeFragment} fragment
+ * @param {numberGenerator} rand
+ */
+function generateBraidMaze(fragment, rand){
+	const gates = Object.values(fragment.gateGraph).reduce((aggr, array) => aggr.concat(array));
+	const graph = [...gates];
+	const boundary = [
+		fragment.subgraph[0],
+		fragment.subgraph.map(row => row[0]).filter((_, index, g) => index !== 0 && index !== g.length - 1),
+		fragment.subgraph[fragment.subgraph.length - 1],
+		fragment.subgraph.map(row => row[row.length - 1]).filter((_, index, g) => index !== 0 && index !== g.length - 1)
+	];
+
+	// Generate boundary nodes and connect them
+	for(let boundaryIndex = 0; boundaryIndex < 4; boundaryIndex++){
+		for(let sideIndex = 0; sideIndex < boundary[boundaryIndex].length; sideIndex++){
+			// Find the appropriate node
+			const point = boundary[boundaryIndex][sideIndex];
+			let graphNode = gates.find(node => node.point === point);
+			if(!graphNode){
+				graphNode = new GraphNode(point, []);
+				graph.push(graphNode);
+			}
+
+			// Connect nodes if the side isn't a corner
+			if(sideIndex !== 0){
+				const prevNode = graph.find(node => node.point === boundary[boundaryIndex][sideIndex - 1]);
+				prevNode.connections.push(graphNode);
+				graphNode.connections.push(graphNode);
+			}
+		}
+
+		// Connect corners
+		if(boundaryIndex > 1){
+			const cornerPoint = boundary[boundaryIndex][0];
+			const prevPoint = boundary[boundaryIndex - 1][boundary[boundaryIndex - 1].length - 1];
+			const cornerNode = graph.find(node => node.point === cornerPoint);
+			const prevNode = graph.find(node => node.point === prevPoint);
+			if(cornerPoint.neighbours.includes(prevPoint)){
+				cornerNode.connections.push(prevNode);
+				prevNode.connections.push(cornerNode);
+			}
+		}
+	}
+
+	// Connect the remaining corners
+	const cornerA = graph.find(node => node.point ===  boundary[0][0]);
+	const cornerB = graph.find(node => node.point ===  boundary[1][0]);
+	const cornerC = graph.find(node => node.point ===  boundary[0][boundary[0].length - 1]);
+	const cornerD = graph.find(node => node.point ===  boundary[3][0]);
+	if(cornerA.point.neighbours.includes(cornerB.point)){
+		cornerA.connections.push(cornerB);
+		cornerB.connections.push(cornerA);
+	}
+	if(cornerC.point.neighbours.includes(cornerD.point)){
+		cornerC.connections.push(cornerD);
+		cornerD.connections.push(cornerC);
+	}
+
+	// Add the center points and assign 0,2-5 connections
+	const centerGrid = fragment.subgraph.reduce((aggr, array) => aggr.concat(array));
+	const connectionArray = [];
+	for(const point of centerGrid){
+		const node = new GraphNode(point, []);
+		const connectionPoints = [];
+		const numConnections = Math.floor(rand() * 4);
+
+		// Add the random number of connections
+		const possibleConnections = point.neighbours.filter(pt => fragment.subgraph.filter(row => row.includes(pt)).length > 0)
+		let connectionCounter = 0;
+		for(const pt of possibleConnections){
+			if(connectionCounter >= 2 + numConnections) break;
+			connectionPoints.push(pt);
+			connectionCounter++;
+		}
+	
+
+		const n = numConnections > 2 ? numConnections : 1;
+		connectionArray.push([node, n, connectionPoints]);
+		graph.push(node);
+	}
+	
+	// Consolidate connections
+	for(const connInfo of connectionArray){
+		const node = connInfo[0];
+		const connCount = connInfo[1];
+		let connCounter = 0;
+		for(let pIndex = Math.floor(rand() * connInfo[2].length); pIndex < connInfo[2].length; pIndex = (pIndex + 1) % connInfo[2].length){
+			const pt = connInfo[2][pIndex];
+			if(connCounter >= connCount) break;
+
+			// If the connection is missing, add it
+			if(node.connections.filter(n => n.point === pt).length === 0){
+				const neighbour = graph.find(n => n.point === pt);
+				node.connections.push(neighbour);
+				neighbour.connections.push(node);
+			}
+			connCounter++;
+		}
+	}
+
+	// Remove dangling points
+	for(const node of graph){
+		if(node.connections.length === 1){
+			const possibleConnections = node.point.neighbours.filter(pt => pt !== node.connections[0].point && fragment.subgraph.filter(row => row.includes(pt)).length > 0);
+			const randIndex = Math.floor(rand() * possibleConnections.length);
+			const randNode = graph.find(n => n.point === possibleConnections[randIndex]);
+			node.connections.push(randNode);
+			randNode.connections.push(node);
+		}
+	}
+
+	return graph;
 }
 
 /**
@@ -590,7 +755,7 @@ function generateFragmentGates(fragment, directions, rand){
 		"West": []
 	};
 
-	const gatePercentage = 0.25;
+	const gatePercentage = 0.3;
 	for(const direction of directions){
 		let numGates = 0;
 		switch (direction) {
@@ -831,7 +996,7 @@ export default function generateMaze(grid, start, endCandidates, config){
 													}
 												})
 													
-				const sliceNeighbours = !(fragment.connections.includes("East") || fragment.connections.includes("West")) ? undefined : 
+				const sliceNeighbours = (!(fragment.connections.includes("East") || fragment.connections.includes("West"))) ? undefined : 
 												layer
 													// Collect slices which are neighbours
 													.filter((_, subIndex) => Math.abs(subIndex - sliceIndex) === 1 || (sliceIndex === 0 && subIndex === layer.length - 1 && layer.length > 1) || (subIndex === 0 && sliceIndex === layer.length - 1 && layer.length > 1) || layer.length === 2 )
@@ -877,7 +1042,7 @@ export default function generateMaze(grid, start, endCandidates, config){
 														}
 													});
 				// Adjust for the fact that gluing the first and last slices will have the filter function reach the Eastern slice first
-				if((sliceIndex === 0 || sliceIndex === layer.length - 1)) sliceNeighbours.reverse()
+				if(sliceNeighbours && (sliceIndex === 0 || sliceIndex === layer.length - 1)) sliceNeighbours.reverse()
 				
 			
 				const fragmentNeighbours = !(fragment.connections.includes("North") || fragment.connections.includes("South")) ? undefined : 
@@ -1036,9 +1201,10 @@ export default function generateMaze(grid, start, endCandidates, config){
 						maze = generateRingMaze(fragment, startArray, rand);
 						break;
 					case "branch":
-						maze = generateBranchMaze(fragment, startArray, "East", rand);
+						maze = generateBranchMaze(fragment, startArray, "South", rand);
 						break;
 					case "braid":
+						maze = generateBraidMaze(fragment, rand);
 						break;
 				}
 
@@ -1048,9 +1214,9 @@ export default function generateMaze(grid, start, endCandidates, config){
 		}
 	}
 	
-	// const temp = validateGraph(graph);
-	// const g = [];
-	// g.push(...(temp || []))
+	const temp = validateGraph(graph);
+	const g = [];
+	g.push(...(temp || []))
 	return {
 		start: grid.points[0][0],
 		outline: outline,

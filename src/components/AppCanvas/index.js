@@ -190,7 +190,8 @@ export default function AppCanvas(props){
 	useEffect(()=>{
 		if(renderer && appState.grid){
 			renderer.clear();
-			drawGrid(renderer);
+			renderer.background("black");
+			//drawGrid(renderer);
 			//drawOutline(renderer);
 			drawMaze(renderer);
 		}
