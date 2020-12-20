@@ -32,7 +32,7 @@ export default function AppCanvas(props){
 			},
 			nodePoint: {
 				stroke: 3.25,
-				color: "blue"
+				color: "cyan"
 			},
 			line: {
 				stroke: 3,

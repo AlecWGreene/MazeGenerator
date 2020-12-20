@@ -150,6 +150,13 @@ export class MazeConfig{
 					const fragHeight = Math.max(Math.ceil(sliceGraph.length * sliceArray[fragmentIndex].floatSize / fragmentFloatTotal), 1);
 					const fragGraph = sliceGraph.filter((tLayer, index) => index >= largestFragIndex && index < largestFragIndex + fragHeight);
 
+					// Add the center to layer 0 fragments
+					if(index === 0 && fragmentIndex === 0){
+						if(fragGraph.filter(row => row.includes(grid.points[0][0])).length === 0){
+							fragGraph[0].push(grid.points[0][0]);
+						}
+					}
+
 					// Push fragment info to slice outline
 					largestFragIndex += fragGraph.length;
 					sliceOutline.push({
@@ -791,6 +798,8 @@ function generateFragmentGates(fragment, directions, rand){
 
 					// Adjust for the first layer
 					if(sring.length <= 1){
+						if(sring.length === 1) gates.South.push(sring[0])
+						console.log(fragment)
 						break;
 					}
 
@@ -1059,12 +1068,12 @@ export default function generateMaze(grid, start, endCandidates, config){
 													})
 
 				// Add the empty arrays to align the layer indices
-				if(layerIndex === outline.length - 1){
+				if(layerNeighbours && layerIndex === outline.length - 1){
 					layerNeighbours.push([])
 				}
 
 				// Add the empty arrays to align the fragment indices
-				if(fragmentNeighbours?.length === 1){
+				if(fragmentNeighbours && fragmentNeighbours?.length === 1){
 					if(fragmentIndex === 0){
 						fragmentNeighbours.unshift([])
 					}
@@ -1077,6 +1086,11 @@ export default function generateMaze(grid, start, endCandidates, config){
 				const gateArray = connectGateNodes(fragment, layerNeighbours, sliceNeighbours, fragmentNeighbours, layer.length === 2);
 				fragment.gateGraph = gateArray;
 				gateGraph.push(...Object.values(fragment.gateGraph).reduce((aggr, array) => aggr.concat(array)));
+
+				// Connect any first layer first fragments to the centers
+				if(layerIndex === 0 && fragmentIndex === 0){
+					console.log(fragment.gates)
+				}
 			}
 		}
 	}

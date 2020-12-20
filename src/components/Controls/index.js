@@ -124,12 +124,50 @@ const mazeOutlineArray = [
 					new LayerFragment("braid", 1.5, ["North", "South"])
 				]
 			], [1], "ring")
-		], "Alec")
+		], "Alec"),
+	new MazeConfig(
+		"braid", [
+			// Layer 0
+			new MazeLayer(0.5, [
+				[
+					new LayerFragment("branch", 1, ["North", "South"])
+				],
+				[
+					new LayerFragment("branch", 2, ["South"])
+				]
+			], [1,2], "ring"),
+			// Layer 1
+			new MazeLayer(2, [
+				[
+					new LayerFragment("ring", 3, ["East", "West"]),
+					new LayerFragment("ring", 1, ["East", "West"])
+				],
+				[
+					new LayerFragment("branch", 0.7, ["North", "South"]),
+					new LayerFragment("ring", 1, ["East", "West", "South"]),
+					new LayerFragment("braid", 0.75, ["North", "East", "West", "South"])
+				],
+				[
+					new LayerFragment("ring", 3, ["East", "West"]),
+					new LayerFragment("ring", 1, ["East", "West"])
+				],
+				[
+					new LayerFragment("branch", 3, ["North", "East", "West"]),
+					new LayerFragment("branch", 1, ["East", "West", "South"])
+				]
+			], [1, 2.5, 1, 4], "ring"),
+			new MazeLayer(1, [
+				[
+					new LayerFragment("braid", 1, ["North", "South"])
+				]
+			], [1], "ring")
+		], "ALECGreene"
+	)
 ]
 
 const mazeSettings = {
 	start: [0,0],
-	outline: mazeOutlineArray[3]
+	outline: mazeOutlineArray[2]
 	// outline: new MazeConfig("ring", [
 	// 	new MazeLayer(1, [
 	// 		[
